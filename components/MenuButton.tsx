@@ -1,6 +1,6 @@
-import { FontAwesome } from '@expo/vector-icons'
-import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import React from 'react'
+import FontAwesome from 'react-native-vector-icons/FontAwesome'
 import { menusItems } from '../constants/temData'
 
 type MenuButtonType = {

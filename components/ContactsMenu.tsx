@@ -1,7 +1,6 @@
-import { AntDesign } from '@expo/vector-icons'
+import { StyleSheet, Text, View, Image } from 'react-native'
 import React from 'react'
-import { Image, StyleSheet, Text, View } from 'react-native'
-
+import AntDesign from 'react-native-vector-icons/AntDesign'
 import { contactsMenuButtons } from '../constants/temData'
 
 export default function ContactsMenu() {

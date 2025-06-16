@@ -1,11 +1,14 @@
 import React from 'react'
 import {
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Image,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 
 const dummyContacts = [
@@ -23,50 +26,56 @@ const getAvatarUrl = (name) => {
 
 export default function ContactsScreen() {
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Contacts</Text>
-        <Text style={styles.subtitle}>{dummyContacts.length} contacts</Text>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Contacts</Text>
+          <Text style={styles.subtitle}>{dummyContacts.length} contacts</Text>
+        </View>
 
-      <FlatList
-        data={dummyContacts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.contactCard}
-            activeOpacity={0.7}
-          >
-            <View style={styles.avatarContainer}>
+        <FlatList
+          data={dummyContacts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
               <Image
                 source={{ uri: getAvatarUrl(item.name) }}
                 style={styles.avatar}
               />
-            </View>
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactName}>{item.name}</Text>
-              <Text style={styles.contactStatus}>Available</Text>
-            </View>
-            <View style={styles.onlineIndicator} />
-          </TouchableOpacity>
-        )}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-      />
-    </View>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>{item.name}</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusText}>Available</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+        />
+
+        <TouchableOpacity style={styles.addContactButton} activeOpacity={0.7}>
+          <Text style={styles.addContactText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#0f0f0f',
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   header: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
+    marginTop: 20,
+    marginBottom: 12,
   },
   title: {
     color: '#ffffff',
@@ -81,61 +90,73 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   listContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 80,
   },
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: '#242424',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  avatarContainer: {
-    position: 'relative',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#333333',
-    borderWidth: 2,
-    borderColor: '#2a2a2a',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#3399ff',
+    marginRight: 16,
   },
   contactInfo: {
     flex: 1,
-    marginLeft: 16,
   },
   contactName: {
-    color: '#ffffff',
-    fontSize: 18,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#3399ff',
+    borderRadius: 12,
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+  },
+  statusText: {
+    color: '#fff',
     fontWeight: '600',
-    marginBottom: 2,
-  },
-  contactStatus: {
-    color: '#4ade80',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  onlineIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#4ade80',
-    borderWidth: 2,
-    borderColor: '#1a1a1a',
+    fontSize: 11,
   },
   separator: {
-    height: 16,
+    height: 14,
+  },
+  addContactButton: {
+    position: 'absolute',
+    right: 24,
+    bottom: 30,
+    backgroundColor: '#3399ff',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#3399ff',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  addContactText: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: '700',
+    lineHeight: 36,
   },
 })
