@@ -1,15 +1,16 @@
 import React from 'react'
 import {
-  FlatList,
-  Image,
-  Platform,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    FlatList,
+    Image,
+    Platform,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native'
+import { useThemeContext } from '../../components/ThemeContext'
 
 const dummyContacts = [
   { id: '1', name: 'John Doe' },
@@ -19,32 +20,45 @@ const dummyContacts = [
   { id: '5', name: 'Comfort Bright' },
 ]
 
-const getAvatarUrl = (name) => {
+const getAvatarUrl = (name: string) => {
   const seed = name.toLowerCase().replace(/\s+/g, '')
   return `https://api.dicebear.com/9.x/avataaars/png?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`
 }
 
 export default function ContactsScreen() {
+  const { theme } = useThemeContext();
+  const isDarkTheme = theme === 'dark';
+
+  // Theme-aware colors
+  const themeColors = {
+    background: isDarkTheme ? '#0f0f0f' : '#ffffff',
+    cardBackground: isDarkTheme ? '#242424' : '#f8f9fa',
+    textPrimary: isDarkTheme ? '#ffffff' : '#000000',
+    textSecondary: isDarkTheme ? '#888888' : '#666666',
+    accent: '#3399ff',
+    borderColor: isDarkTheme ? '#333333' : '#e0e0e0',
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Contacts</Text>
-          <Text style={styles.subtitle}>{dummyContacts.length} contacts</Text>
+          <Text style={[styles.title, { color: themeColors.textPrimary }]}>Contacts</Text>
+          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>{dummyContacts.length} contacts</Text>
         </View>
 
         <FlatList
           data={dummyContacts}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
+            <TouchableOpacity style={[styles.contactCard, { backgroundColor: themeColors.cardBackground }]} activeOpacity={0.7}>
               <Image
                 source={{ uri: getAvatarUrl(item.name) }}
-                style={styles.avatar}
+                style={[styles.avatar, { borderColor: themeColors.accent }]}
               />
               <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{item.name}</Text>
-                <View style={styles.statusBadge}>
+                <Text style={[styles.contactName, { color: themeColors.textPrimary }]}>{item.name}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: themeColors.accent }]}>
                   <Text style={styles.statusText}>Available</Text>
                 </View>
               </View>
@@ -55,7 +69,7 @@ export default function ContactsScreen() {
           contentContainerStyle={styles.listContainer}
         />
 
-        <TouchableOpacity style={styles.addContactButton} activeOpacity={0.7}>
+        <TouchableOpacity style={[styles.addContactButton, { backgroundColor: themeColors.accent }]} activeOpacity={0.7}>
           <Text style={styles.addContactText}>+</Text>
         </TouchableOpacity>
       </View>
@@ -66,7 +80,6 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f0f0f',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   container: {
@@ -78,14 +91,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    color: '#ffffff',
     fontSize: 32,
     fontWeight: '700',
     marginBottom: 4,
     letterSpacing: -0.5,
   },
   subtitle: {
-    color: '#888888',
     fontSize: 16,
     fontWeight: '400',
   },
@@ -95,7 +106,6 @@ const styles = StyleSheet.create({
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#242424',
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 14,
@@ -110,21 +120,18 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: '#3399ff',
     marginRight: 16,
   },
   contactInfo: {
     flex: 1,
   },
   contactName: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
   },
   statusBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#3399ff',
     borderRadius: 12,
     paddingVertical: 2,
     paddingHorizontal: 10,
@@ -141,7 +148,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 24,
     bottom: 30,
-    backgroundColor: '#3399ff',
     width: 56,
     height: 56,
     borderRadius: 28,

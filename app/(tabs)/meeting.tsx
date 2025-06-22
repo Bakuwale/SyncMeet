@@ -1,173 +1,182 @@
-import { Ionicons } from '@expo/vector-icons'
-import React from 'react'
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native'
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useMeetings } from '../../components/MeetingContext';
+import { useThemeContext } from '../../components/ThemeContext';
 
-export default function MeetingScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Meetings</Text>
+const FILTERS = ['All', 'Upcoming', 'Past'];
 
-      {/* Search Bar */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={20} color="#aaa" />
-        <TextInput
-          placeholder="Search meetings..."
-          placeholderTextColor="#777"
-          style={styles.searchInput}
-        />
-        <Ionicons name="add-circle" size={28} color="#0A84FF" />
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        {['All', 'Upcoming', 'Past', 'Recurring'].map((tab, index) => (
-          <TouchableOpacity key={index}>
-            <Text style={[styles.tabText, index === 0 && styles.activeTab]}>{tab}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Scrollable Meeting List */}
-      <ScrollView style={{ flex: 1 }}>
-        <MeetingCard
-          title="Weekly Team Standup"
-          date="Fri, May 16"
-          time="7:35 AM • 30 min"
-          participants="2 participants"
-          id="ABC123"
-          status="Ended"
-          statusColor="#666"
-        />
-        <MeetingCard
-          title="Product Demo"
-          date="Sat, May 17"
-          time="6:35 AM • 60 min"
-          participants="1 participant"
-          id="XYZ789"
-          status="Upcoming"
-          statusColor="#0A84FF"
-        />
-      </ScrollView>
-    </View>
-  )
+function isUpcoming(meeting: any) {
+  return new Date(meeting.date) > new Date();
 }
 
-function MeetingCard({ title, date, time, participants, id, status, statusColor }) {
+export default function MeetingsTab() {
+  const { meetings } = useMeetings();
+  const { theme } = useThemeContext();
+  const isDarkTheme = theme === 'dark';
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('All');
+
+  // Theme-aware colors
+  const themeColors = {
+    background: isDarkTheme ? '#1c1c1c' : '#ffffff',
+    cardBackground: isDarkTheme ? '#232323' : '#f8f9fa',
+    searchBackground: isDarkTheme ? '#222' : '#f0f0f0',
+    filterBackground: isDarkTheme ? '#222' : '#f0f0f0',
+    filterActive: '#0a84ff',
+    textPrimary: isDarkTheme ? '#fff' : '#000',
+    textSecondary: isDarkTheme ? '#aaa' : '#666',
+    textTertiary: isDarkTheme ? '#ccc' : '#888',
+    borderColor: isDarkTheme ? '#333' : '#e0e0e0',
+  };
+
+  const filteredMeetings = meetings
+    .filter(m =>
+      m.title.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter(m => {
+      if (filter === 'Upcoming') return isUpcoming(m);
+      if (filter === 'Past') return !isUpcoming(m);
+      return true;
+    });
+
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-          <Text style={styles.statusText}>{status}</Text>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <View style={styles.meetingTabContentWrapper}>
+        {/* Search Bar (now above filter bar) */}
+        <View style={[styles.searchBar, { marginTop: 32, marginBottom: 8, backgroundColor: themeColors.searchBackground }]}> 
+          <Ionicons name="search" size={20} color={themeColors.textSecondary} />
+          <TextInput
+            style={[styles.searchInput, { color: themeColors.textPrimary }]}
+            placeholder="Search meetings"
+            placeholderTextColor={themeColors.textSecondary}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
+        {/* Filter Bar (now below search bar) */}
+        <View style={styles.filterBar}>
+          {FILTERS.map(f => (
+            <TouchableOpacity
+              key={f}
+              style={[
+                styles.filterBtn, 
+                { backgroundColor: themeColors.filterBackground },
+                filter === f && { backgroundColor: themeColors.filterActive }
+              ]}
+              onPress={() => setFilter(f)}
+            >
+              <Text style={[
+                styles.filterText, 
+                { color: themeColors.textSecondary },
+                filter === f && { color: '#fff' }
+              ]}>{f}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Meeting List */}
+        <FlatList
+          data={filteredMeetings}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => <MeetingCard meeting={item} themeColors={themeColors} />}
+          ListEmptyComponent={
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+              No meetings found.
+            </Text>
+          }
+          contentContainerStyle={{ paddingBottom: 40 }}
+        />
+      </View>
+    </View>
+  );
+}
+
+function MeetingCard({ meeting, themeColors }: { meeting: any; themeColors: any }) {
+  const now = new Date();
+  const start = new Date(meeting.date);
+  const end = new Date(start.getTime() + meeting.duration * 60000);
+  const isUpcoming = start > now;
+  const status = isUpcoming ? 'Upcoming' : 'Ended';
+
+  return (
+    <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+        <Text style={[styles.title, { color: themeColors.textPrimary }]}>{meeting.title}</Text>
+        <View style={[styles.badge, isUpcoming ? styles.badgeUpcoming : styles.badgeEnded]}>
+          <Text style={styles.badgeText}>{status}</Text>
         </View>
       </View>
-      <Text style={styles.cardDetail}><Ionicons name="calendar-outline" /> {date}</Text>
-      <Text style={styles.cardDetail}><Ionicons name="time-outline" /> {time}</Text>
-      <Text style={styles.cardDetail}><Ionicons name="people-outline" /> {participants}</Text>
-      <View style={styles.cardFooter}>
-        <Text style={styles.meetingId}>Meeting ID: {id}</Text>
-        <TouchableOpacity>
+      <View style={styles.row}>
+        <MaterialIcons name="calendar-today" size={16} color={themeColors.textSecondary} />
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>{start.toLocaleDateString()}</Text>
+      </View>
+      <View style={styles.row}>
+        <Ionicons name="time" size={16} color={themeColors.textSecondary} />
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+          {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {meeting.duration} min
+        </Text>
+      </View>
+      <View style={styles.row}>
+        <Ionicons name="people" size={16} color={themeColors.textSecondary} />
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+          {meeting.participants} participant{meeting.participants > 1 ? 's' : ''}
+        </Text>
+      </View>
+      <View style={styles.row}>
+        <Ionicons name="key" size={16} color={themeColors.textSecondary} />
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>{meeting.id}</Text>
+        <TouchableOpacity style={styles.joinBtn}>
           <Text style={styles.joinText}>Join</Text>
         </TouchableOpacity>
       </View>
+      {meeting.description ? (
+        <Text style={[styles.desc, { color: themeColors.textTertiary }]}>{meeting.description}</Text>
+      ) : null}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: '#fff',
-  },
-  searchBar: {
-    flexDirection: 'row',
+  container: { flex: 1, padding: 16 },
+  meetingTabContentWrapper: {
+    marginTop: 32,
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 16,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#fff',
+  searchBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    borderRadius: 8, 
+    paddingHorizontal: 10, 
+    marginBottom: 10 
   },
-  tabs: {
+  searchInput: { flex: 1, padding: 8 },
+  filterBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    justifyContent: 'space-around',
+    marginTop: 18,
+    marginBottom: 10,
+    width: '95%',
+    alignSelf: 'center',
   },
-  tabText: {
-    fontSize: 14,
-    color: '#aaa',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+  filterBtn: { 
+    paddingVertical: 6, 
+    paddingHorizontal: 18, 
+    borderRadius: 20 
   },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#0A84FF',
-    color: '#0A84FF',
-  },
-  card: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardDetail: {
-    fontSize: 14,
-    color: '#ccc',
-    marginVertical: 2,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  meetingId: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#bbb',
-  },
-  joinText: {
-    color: '#0A84FF',
-    fontWeight: '600',
-  },
-})
+  filterText: { fontWeight: 'bold' },
+  card: { borderRadius: 12, padding: 16, marginBottom: 16 },
+  title: { fontWeight: 'bold', fontSize: 17, flex: 1 },
+  badge: { marginLeft: 10, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  badgeUpcoming: { backgroundColor: '#34c759' },
+  badgeEnded: { backgroundColor: '#aaa' },
+  badgeText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  infoText: { marginLeft: 6, fontSize: 15 },
+  joinBtn: { marginLeft: 'auto', backgroundColor: '#0a84ff', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 4 },
+  joinText: { color: '#fff', fontWeight: 'bold' },
+  desc: { marginTop: 8, fontStyle: 'italic' },
+  emptyText: { textAlign: 'center', marginTop: 16 },
+});
+
