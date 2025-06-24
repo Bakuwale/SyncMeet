@@ -1,168 +1,199 @@
-import React from 'react'
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import React, { useState } from 'react';
 import {
-  FlatList,
-  Image,
+  Alert,
   Platform,
   SafeAreaView,
-  StatusBar,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-} from 'react-native'
-import { useThemeContext } from '../../components/ThemeContext'
+} from 'react-native';
+import uuid from 'react-native-uuid';
+import { useMeetings } from '../../components/MeetingContext';
+import { useThemeContext } from '../../components/ThemeContext';
 
-const dummyContacts = [
-  { id: '1', name: 'John Doe' },
-  { id: '2', name: 'Jane Smith' },
-  { id: '3', name: 'Zoom Bot' },
-  { id: '4', name: 'Michael Techie' },
-  { id: '5', name: 'Comfort Bright' },
-]
-
-const getAvatarUrl = (name: string) => {
-  const seed = name.toLowerCase().replace(/\s+/g, '')
-  return `https://api.dicebear.com/9.x/avataaars/png?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`
-}
-
-export default function ContactsScreen() {
+export default function ScheduleMeetingScreen() {
   const { theme } = useThemeContext();
   const isDarkTheme = theme === 'dark';
+  const { addMeeting } = useMeetings();
 
-  // Theme-aware colors
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [duration, setDuration] = useState('30');
+  const [description, setDescription] = useState('');
+
+  const onChangeDate = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const updatedDate = new Date(date);
+      updatedDate.setFullYear(selectedDate.getFullYear());
+      updatedDate.setMonth(selectedDate.getMonth());
+      updatedDate.setDate(selectedDate.getDate());
+      setDate(updatedDate);
+    }
+  };
+
+  const onChangeTime = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(false);
+    if (selectedTime) {
+      const updatedDate = new Date(date);
+      updatedDate.setHours(selectedTime.getHours());
+      updatedDate.setMinutes(selectedTime.getMinutes());
+      setDate(updatedDate);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!title || !duration) {
+      Alert.alert('Error', 'Please fill in the meeting title and duration.');
+      return;
+    }
+
+    const newMeeting = {
+      id: uuid.v4(),
+      title,
+      date: date.toISOString(),
+      duration: parseInt(duration),
+      participants: 0,
+      description,
+    };
+
+    addMeeting(newMeeting);
+    Alert.alert('Meeting Scheduled', 'Your meeting has been added to the list.');
+
+    // Reset inputs
+    setTitle('');
+    setDate(new Date());
+    setDuration('30');
+    setDescription('');
+  };
+
   const themeColors = {
-    background: isDarkTheme ? '#0f0f0f' : '#ffffff',
-    cardBackground: isDarkTheme ? '#242424' : '#f8f9fa',
+    background: isDarkTheme ? '#121212' : '#ffffff',
+    inputBackground: isDarkTheme ? '#1e1e1e' : '#f1f1f1',
     textPrimary: isDarkTheme ? '#ffffff' : '#000000',
-    textSecondary: isDarkTheme ? '#888888' : '#666666',
-    accent: '#3399ff',
-    borderColor: isDarkTheme ? '#333333' : '#e0e0e0',
+    textSecondary: '#aaa',
+    buttonBackground: '#3399ff',
+    buttonText: '#ffffff',
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: themeColors.textPrimary }]}>Contacts</Text>
-          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>{dummyContacts.length} contacts</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
+        <Text style={[styles.heading, { color: themeColors.textPrimary }]}>Schedule a Meeting</Text>
+
+        {/* Meeting Title */}
+        <Text style={[styles.label, { color: themeColors.textPrimary }]}>Meeting Title</Text>
+        <View style={[styles.inputContainer, { backgroundColor: themeColors.inputBackground }]}>
+          <Ionicons name="videocam-outline" size={20} color={themeColors.textSecondary} style={styles.icon} />
+          <TextInput
+            placeholder="Enter meeting title"
+            placeholderTextColor={themeColors.textSecondary}
+            style={[styles.input, { color: themeColors.textPrimary }]}
+            value={title}
+            onChangeText={setTitle}
+          />
         </View>
 
-        <FlatList
-          data={dummyContacts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.contactCard, { backgroundColor: themeColors.cardBackground }]} activeOpacity={0.7}>
-              <Image
-                source={{ uri: getAvatarUrl(item.name) }}
-                style={[styles.avatar, { borderColor: themeColors.accent }]}
-              />
-              <View style={styles.contactInfo}>
-                <Text style={[styles.contactName, { color: themeColors.textPrimary }]}>{item.name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: themeColors.accent }]}>
-                  <Text style={styles.statusText}>Available</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
-        />
-
-        <TouchableOpacity style={[styles.addContactButton, { backgroundColor: themeColors.accent }]} activeOpacity={0.7}>
-          <Text style={styles.addContactText}>+</Text>
+        {/* Date Picker */}
+        <Text style={[styles.label, { color: themeColors.textPrimary }]}>Date</Text>
+        <TouchableOpacity
+          style={[styles.inputContainer, { backgroundColor: themeColors.inputBackground }]}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <MaterialIcons name="calendar-today" size={20} color={themeColors.textSecondary} style={styles.icon} />
+          <Text style={[styles.input, { color: themeColors.textPrimary }]}>{date.toLocaleDateString()}</Text>
         </TouchableOpacity>
-      </View>
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            onChange={onChangeDate}
+          />
+        )}
+
+        {/* Time Picker */}
+        <Text style={[styles.label, { color: themeColors.textPrimary }]}>Time</Text>
+        <TouchableOpacity
+          style={[styles.inputContainer, { backgroundColor: themeColors.inputBackground }]}
+          onPress={() => setShowTimePicker(true)}
+        >
+          <MaterialIcons name="access-time" size={20} color={themeColors.textSecondary} style={styles.icon} />
+          <Text style={[styles.input, { color: themeColors.textPrimary }]}>
+            {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </TouchableOpacity>
+        {showTimePicker && (
+          <DateTimePicker
+            value={date}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onChangeTime}
+          />
+        )}
+
+        {/* Duration */}
+        <Text style={[styles.label, { color: themeColors.textPrimary }]}>Duration (minutes)</Text>
+        <View style={[styles.inputContainer, { backgroundColor: themeColors.inputBackground }]}>
+          <TextInput
+            placeholder="30"
+            placeholderTextColor={themeColors.textSecondary}
+            keyboardType="numeric"
+            style={[styles.input, { color: themeColors.textPrimary }]}
+            value={duration}
+            onChangeText={setDuration}
+          />
+        </View>
+
+        {/* Description */}
+        <Text style={[styles.label, { color: themeColors.textPrimary }]}>Description (optional)</Text>
+        <View style={[styles.inputContainer, { backgroundColor: themeColors.inputBackground }]}>
+          <TextInput
+            placeholder="Enter meeting description"
+            placeholderTextColor={themeColors.textSecondary}
+            style={[styles.input, { color: themeColors.textPrimary }]}
+            value={description}
+            onChangeText={setDescription}
+          />
+        </View>
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: themeColors.buttonBackground }]}
+          onPress={handleSubmit}
+        >
+          <Text style={[styles.submitText, { color: themeColors.buttonText }]}>Submit</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  header: {
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-  },
-  listContainer: {
-    paddingBottom: 80,
-  },
-  contactCard: {
+  container: { flex: 1, padding: 20 },
+  heading: { fontSize: 24, fontWeight: '700', marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 6, marginTop: 16 },
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    marginRight: 16,
-  },
-  contactInfo: {
-    flex: 1,
-  },
-  contactName: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: 12,
-    paddingVertical: 2,
-    paddingHorizontal: 10,
-  },
-  statusText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 11,
-  },
-  separator: {
-    height: 14,
-  },
-  addContactButton: {
-    position: 'absolute',
-    right: 24,
-    bottom: 30,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
+  icon: { marginRight: 8 },
+  input: { fontSize: 14, flex: 1 },
+  submitButton: {
+    marginTop: 30,
+    paddingVertical: 16,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#3399ff',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 6,
   },
-  addContactText: {
-    color: '#fff',
-    fontSize: 36,
-    fontWeight: '700',
-    lineHeight: 36,
-  },
-})
+  submitText: { fontSize: 16, fontWeight: '700' },
+});

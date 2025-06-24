@@ -1,6 +1,13 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useMeetings } from '../../components/MeetingContext';
 import { useThemeContext } from '../../components/ThemeContext';
 
@@ -17,7 +24,6 @@ export default function MeetingsTab() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
 
-  // Theme-aware colors
   const themeColors = {
     background: isDarkTheme ? '#1c1c1c' : '#ffffff',
     cardBackground: isDarkTheme ? '#232323' : '#f8f9fa',
@@ -43,8 +49,8 @@ export default function MeetingsTab() {
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <View style={styles.meetingTabContentWrapper}>
-        {/* Search Bar (now above filter bar) */}
-        <View style={[styles.searchBar, { marginTop: 32, marginBottom: 8, backgroundColor: themeColors.searchBackground }]}> 
+        {/* Search Bar with marginTop */}
+        <View style={[styles.searchBar, { backgroundColor: themeColors.searchBackground }]}>
           <Ionicons name="search" size={20} color={themeColors.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: themeColors.textPrimary }]}
@@ -55,28 +61,28 @@ export default function MeetingsTab() {
           />
         </View>
 
-        {/* Filter Bar (now below search bar) */}
+        {/* Filter Bar */}
         <View style={styles.filterBar}>
           {FILTERS.map(f => (
             <TouchableOpacity
               key={f}
               style={[
-                styles.filterBtn, 
-                { backgroundColor: themeColors.filterBackground },
-                filter === f && { backgroundColor: themeColors.filterActive }
+                styles.filterBtn,
+                { backgroundColor: filter === f ? themeColors.filterActive : themeColors.filterBackground },
               ]}
               onPress={() => setFilter(f)}
             >
               <Text style={[
-                styles.filterText, 
-                { color: themeColors.textSecondary },
-                filter === f && { color: '#fff' }
-              ]}>{f}</Text>
+                styles.filterText,
+                { color: filter === f ? '#fff' : themeColors.textSecondary }
+              ]}>
+                {f}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Meeting List */}
+        {/* Meetings List */}
         <FlatList
           data={filteredMeetings}
           keyExtractor={item => item.id}
@@ -108,31 +114,46 @@ function MeetingCard({ meeting, themeColors }: { meeting: any; themeColors: any 
           <Text style={styles.badgeText}>{status}</Text>
         </View>
       </View>
+
       <View style={styles.row}>
         <MaterialIcons name="calendar-today" size={16} color={themeColors.textSecondary} />
-        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>{start.toLocaleDateString()}</Text>
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+          {start.toLocaleDateString()}
+        </Text>
       </View>
+
       <View style={styles.row}>
         <Ionicons name="time" size={16} color={themeColors.textSecondary} />
         <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
           {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {meeting.duration} min
         </Text>
       </View>
-      <View style={styles.row}>
-        <Ionicons name="people" size={16} color={themeColors.textSecondary} />
-        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
-          {meeting.participants} participant{meeting.participants > 1 ? 's' : ''}
-        </Text>
-      </View>
+
+      {!isUpcoming && (
+        <View style={styles.row}>
+          <Ionicons name="people" size={16} color={themeColors.textSecondary} />
+          <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+            {meeting.participants ?? 0} participant{(meeting.participants ?? 0) !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.row}>
         <Ionicons name="key" size={16} color={themeColors.textSecondary} />
-        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>{meeting.id}</Text>
-        <TouchableOpacity style={styles.joinBtn}>
-          <Text style={styles.joinText}>Join</Text>
-        </TouchableOpacity>
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+          {meeting.id}
+        </Text>
+        {isUpcoming && (
+          <TouchableOpacity style={styles.joinBtn}>
+            <Text style={styles.joinText}>Join</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
       {meeting.description ? (
-        <Text style={[styles.desc, { color: themeColors.textTertiary }]}>{meeting.description}</Text>
+        <Text style={[styles.desc, { color: themeColors.textTertiary }]}>
+          {meeting.description}
+        </Text>
       ) : null}
     </View>
   );
@@ -140,43 +161,56 @@ function MeetingCard({ meeting, themeColors }: { meeting: any; themeColors: any 
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  meetingTabContentWrapper: {
-    marginTop: 32,
+  meetingTabContentWrapper: {},
+  searchBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  searchBar: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    borderRadius: 8, 
-    paddingHorizontal: 10, 
-    marginBottom: 10 
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+    marginTop: 24, // ✅ Extra space at top of search bar
   },
   searchInput: { flex: 1, padding: 8 },
   filterBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 18,
-    marginBottom: 10,
-    width: '95%',
-    alignSelf: 'center',
+    marginBottom: 16,
   },
-  filterBtn: { 
-    paddingVertical: 6, 
-    paddingHorizontal: 18, 
-    borderRadius: 20 
+  filterBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 18,
+    borderRadius: 20,
   },
   filterText: { fontWeight: 'bold' },
-  card: { borderRadius: 12, padding: 16, marginBottom: 16 },
+  card: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
   title: { fontWeight: 'bold', fontSize: 17, flex: 1 },
-  badge: { marginLeft: 10, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeUpcoming: { backgroundColor: '#34c759' },
-  badgeEnded: { backgroundColor: '#aaa' },
+  badge: {
+    marginLeft: 10,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  badgeUpcoming: { backgroundColor: '#0a84ff' },
+  badgeEnded: { backgroundColor: '#999' },
   badgeText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   infoText: { marginLeft: 6, fontSize: 15 },
-  joinBtn: { marginLeft: 'auto', backgroundColor: '#0a84ff', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 4 },
+  joinBtn: {
+    marginLeft: 'auto',
+    backgroundColor: '#0a84ff',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
   joinText: { color: '#fff', fontWeight: 'bold' },
   desc: { marginTop: 8, fontStyle: 'italic' },
   emptyText: { textAlign: 'center', marginTop: 16 },
 });
-

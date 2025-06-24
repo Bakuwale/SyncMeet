@@ -1,5 +1,6 @@
 import { FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Dimensions,
@@ -71,6 +72,8 @@ export default function HomeScreen() {
   const timeZoneOptions = ['GMT+0', 'GMT+1', 'GMT+2', 'GMT-1', 'GMT-5', 'GMT+8'];
   const repeatOptions = ['None', 'Daily', 'Weekly', 'Monthly'];
   const calendarOptions = ['Zoom', 'Google', 'Outlook', 'Other'];
+
+  const router = useRouter();
 
   // Theme-aware colors
   const themeColors = {
@@ -262,7 +265,18 @@ export default function HomeScreen() {
           </View>
 
           {/* Disabled Join Button */}
-          <TouchableOpacity style={[styles.joinModalJoinButton, !meetingId && { opacity: 0.5 }]} disabled={!meetingId}>
+          <TouchableOpacity
+            style={[styles.joinModalJoinButton, !meetingId && { opacity: 0.5 }]}
+            disabled={!meetingId}
+            onPress={() => {
+              if (!userName) {
+                alert('Please enter your name');
+                return;
+              }
+              setJoinModalVisible(false);
+              router.push({ pathname: '/meeting', params: { meetingId, userName } });
+            }}
+          >
             <Text style={styles.joinModalJoinButtonText}>Join</Text>
           </TouchableOpacity>
 
