@@ -1,22 +1,22 @@
 import { FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Dimensions,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    Alert,
+    Dimensions,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import { useThemeContext } from '../../components/ThemeContext';
 
@@ -36,26 +36,6 @@ export default function HomeScreen() {
   const [recentMeetingIds, setRecentMeetingIds] = useState(['123 456 7890', '987 654 3210', '555 666 7777']);
   const [showMeetingIdDropdown, setShowMeetingIdDropdown] = useState(false);
   const [usePersonalLink, setUsePersonalLink] = useState(false);
-  const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
-  const [scheduleTopic, setScheduleTopic] = useState('Zoom Meeting');
-  const [scheduleDate, setScheduleDate] = useState(new Date());
-  const [scheduleDuration, setScheduleDuration] = useState(30); // in minutes
-  const [scheduleTimeZone, setScheduleTimeZone] = useState('GMT+0');
-  const [scheduleRepeat, setScheduleRepeat] = useState('None');
-  const [scheduleUsePMI, setScheduleUsePMI] = useState(false);
-  const [schedulePasscode, setSchedulePasscode] = useState('123456');
-  const [scheduleWaitingRoom, setScheduleWaitingRoom] = useState(true);
-  const [scheduleHostVideo, setScheduleHostVideo] = useState(true);
-  const [scheduleParticipantVideo, setScheduleParticipantVideo] = useState(false);
-  const [scheduleCalendar, setScheduleCalendar] = useState('Zoom');
-  const [scheduleAdvancedJoinBeforeHost, setScheduleAdvancedJoinBeforeHost] = useState(false);
-  const [scheduleAdvancedMuteOnEntry, setScheduleAdvancedMuteOnEntry] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showDurationDropdown, setShowDurationDropdown] = useState(false);
-  const [showTimeZoneDropdown, setShowTimeZoneDropdown] = useState(false);
-  const [showRepeatDropdown, setShowRepeatDropdown] = useState(false);
-  const [showCalendarDropdown, setShowCalendarDropdown] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [shareMeetingId, setShareMeetingId] = useState('');
   const [shareInputFocused, setShareInputFocused] = useState(false);
@@ -115,7 +95,7 @@ export default function HomeScreen() {
           icon={<MaterialIcons name="calendar-today" size={24} color="#fff" />}
           label="Schedule"
           color="#3a8fff"
-          onPress={() => setScheduleModalVisible(true)}
+          onPress={() => router.push('/schedule')}
         />
         <ActionButton
           icon={<Ionicons name="arrow-up" size={24} color="#fff" />}
@@ -201,10 +181,19 @@ export default function HomeScreen() {
             <View style={{ width: 40 }} />
           </View>
 
+          {/* Content Container */}
+          <ScrollView style={styles.joinModalContent} showsVerticalScrollIndicator={false}>
+            {/* Meeting ID Section */}
+            <View style={styles.joinModalSection}>
+              <Text style={[styles.joinModalSectionTitle, { color: themeColors.textPrimary }]}>
+                Meeting ID or Personal Link
+              </Text>
+
           {/* Meeting ID Input */}
-          <View style={styles.joinModalInputWrapper}>
+              <View style={[styles.joinModalInputWrapper, { backgroundColor: themeColors.inputBackground, borderColor: themeColors.borderColor }]}>
+                <Ionicons name="videocam-outline" size={20} color={themeColors.textSecondary} style={styles.joinModalInputIcon} />
             <TextInput
-              style={[styles.joinModalInput, { backgroundColor: themeColors.inputBackground, color: themeColors.inputText }]}
+                  style={[styles.joinModalInput, { color: themeColors.inputText }]}
               placeholder={usePersonalLink ? 'Personal link name' : 'Meeting ID'}
               placeholderTextColor={themeColors.placeholderText}
               value={meetingId}
@@ -214,47 +203,66 @@ export default function HomeScreen() {
               autoCapitalize={usePersonalLink ? 'none' : 'words'}
             />
             {!usePersonalLink && (
-              <Pressable onPress={() => setShowMeetingIdDropdown(v => !v)} style={styles.joinModalInputIcon}>
-                <Ionicons name="chevron-down" size={20} color={themeColors.placeholderText} />
+                  <Pressable onPress={() => setShowMeetingIdDropdown(v => !v)} style={styles.joinModalDropdownButton}>
+                    <Ionicons name="chevron-down" size={20} color={themeColors.textSecondary} />
               </Pressable>
             )}
+              </View>
+              
+              {/* Recent Meeting IDs Dropdown */}
             {showMeetingIdDropdown && !usePersonalLink && (
-              <View style={styles.meetingIdDropdown}>
+                <View style={[styles.meetingIdDropdown, { backgroundColor: themeColors.cardBackground, borderColor: themeColors.borderColor }]}>
                 {recentMeetingIds.length === 0 ? (
-                  <Text style={styles.meetingIdDropdownEmpty}>No recent IDs</Text>
+                    <Text style={[styles.meetingIdDropdownEmpty, { color: themeColors.textSecondary }]}>No recent IDs</Text>
                 ) : (
                   recentMeetingIds.map((id, idx) => (
                     <Pressable
                       key={id + idx}
-                      style={styles.meetingIdDropdownItem}
+                        style={[styles.meetingIdDropdownItem, { borderBottomColor: themeColors.borderColor }]}
                       onPress={() => {
                         setMeetingId(id);
                         setShowMeetingIdDropdown(false);
                       }}
                     >
-                      <Text style={styles.meetingIdDropdownText}>{id}</Text>
+                        <Ionicons name="time-outline" size={16} color={themeColors.textSecondary} />
+                        <Text style={[styles.meetingIdDropdownText, { color: themeColors.textPrimary }]}>{id}</Text>
                     </Pressable>
                   ))
                 )}
               </View>
             )}
-          </View>
 
-          {/* Personal Link Name */}
-          <Pressable onPress={() => {
+              {/* Personal Link Toggle */}
+              <TouchableOpacity 
+                style={styles.joinModalLinkToggle}
+                onPress={() => {
             setUsePersonalLink((prev) => {
               setMeetingId('');
               setShowMeetingIdDropdown(false);
               return !prev;
             });
-          }}>
-            <Text style={[styles.joinModalLinkName, usePersonalLink && styles.joinModalLinkNameActive]}>Join with a personal link name</Text>
-          </Pressable>
+                }}
+              >
+                <Ionicons 
+                  name={usePersonalLink ? "radio-button-on" : "radio-button-off"} 
+                  size={20} 
+                  color={usePersonalLink ? "#3a8fff" : themeColors.textSecondary} 
+                />
+                <Text style={[styles.joinModalLinkName, { color: themeColors.textPrimary }]}>
+                  Join with a personal link name
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          {/* User Name Input */}
-          <View style={styles.joinModalUserNameWrapper}>
+            {/* User Name Section */}
+            <View style={styles.joinModalSection}>
+              <Text style={[styles.joinModalSectionTitle, { color: themeColors.textPrimary }]}>
+                Your Name
+              </Text>
+              <View style={[styles.joinModalInputWrapper, { backgroundColor: themeColors.inputBackground, borderColor: themeColors.borderColor }]}>
+                <Ionicons name="person-outline" size={20} color={themeColors.textSecondary} style={styles.joinModalInputIcon} />
             <TextInput
-              style={[styles.joinModalUserNameInput, { backgroundColor: themeColors.inputBackground, color: themeColors.inputText }]}
+                  style={[styles.joinModalInput, { color: themeColors.inputText }]}
               placeholder="Enter Your Name Here"
               placeholderTextColor={themeColors.placeholderText}
               value={userName}
@@ -262,33 +270,22 @@ export default function HomeScreen() {
               autoCapitalize="words"
               autoCorrect={false}
             />
+              </View>
           </View>
 
-          {/* Disabled Join Button */}
-          <TouchableOpacity
-            style={[styles.joinModalJoinButton, !meetingId && { opacity: 0.5 }]}
-            disabled={!meetingId}
-            onPress={() => {
-              if (!userName) {
-                alert('Please enter your name');
-                return;
-              }
-              setJoinModalVisible(false);
-              router.push({ pathname: '/meeting', params: { meetingId, userName } });
-            }}
-          >
-            <Text style={styles.joinModalJoinButtonText}>Join</Text>
-          </TouchableOpacity>
-
-          {/* Info Text */}
-          <Text style={styles.joinModalInfoText}>
-            If you received an invitation link, tap on the link to join the meeting
+            {/* Join Options Section */}
+            <View style={styles.joinModalSection}>
+              <Text style={[styles.joinModalSectionTitle, { color: themeColors.textPrimary }]}>
+                Join Options
           </Text>
 
-          {/* Join Options */}
-          <Text style={styles.joinModalInfoText}>Join options</Text>
-          <View style={styles.joinModalOptionRow}>
-            <Text style={styles.joinModalOptionLabel}>Don't connect to audio</Text>
+              <View style={[styles.joinModalOptionRow, { borderBottomColor: themeColors.borderColor }]}>
+                <View style={styles.joinModalOptionContent}>
+                  <Ionicons name="mic-outline" size={20} color={themeColors.textSecondary} />
+                  <Text style={[styles.joinModalOptionLabel, { color: themeColors.textPrimary }]}>
+                    Don't connect to audio
+                  </Text>
+                </View>
             <Switch
               value={joinAudio}
               onValueChange={setJoinAudio}
@@ -296,8 +293,14 @@ export default function HomeScreen() {
               trackColor={{ true: '#b3d8ff', false: '#ccc' }}
             />
           </View>
+              
           <View style={styles.joinModalOptionRow}>
-            <Text style={styles.joinModalOptionLabel}>Turn off my video</Text>
+                <View style={styles.joinModalOptionContent}>
+                  <Ionicons name="videocam-outline" size={20} color={themeColors.textSecondary} />
+                  <Text style={[styles.joinModalOptionLabel, { color: themeColors.textPrimary }]}>
+                    Turn off my video
+                  </Text>
+                </View>
             <Switch
               value={turnOffVideo}
               onValueChange={setTurnOffVideo}
@@ -306,232 +309,34 @@ export default function HomeScreen() {
             />
           </View>
         </View>
-      </Modal>
 
-      {/* Schedule Meeting Modal */}
-      <Modal
-        visible={scheduleModalVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setScheduleModalVisible(false)}
-      >
-        <View style={styles.scheduleModalContainer}>
-          {/* Header */}
-          <View style={styles.scheduleModalHeaderBar}>
-            <Pressable
-              onPress={() => setScheduleModalVisible(false)}
-              style={styles.scheduleModalBackPressable}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="arrow-back" size={26} color="#3a8fff" />
-            </Pressable>
-            <Text style={styles.scheduleModalHeaderTitle}>Schedule Meeting</Text>
-            <View style={{ width: 40 }} />
+            {/* Info Text */}
+            <View style={styles.joinModalInfoSection}>
+              <Ionicons name="information-circle-outline" size={16} color={themeColors.textSecondary} />
+              <Text style={[styles.joinModalInfoText, { color: themeColors.textSecondary }]}>
+                If you received an invitation link, tap on the link to join the meeting
+              </Text>
           </View>
-
-          {/* Form Fields */}
-          <ScrollView style={styles.scheduleModalForm} keyboardShouldPersistTaps="handled">
-            {/* Topic */}
-            <Text style={styles.scheduleModalLabel}>Topic</Text>
-            <TextInput
-              style={[styles.scheduleModalInput, { backgroundColor: themeColors.inputBackground, color: themeColors.inputText }]}
-              value={scheduleTopic}
-              onChangeText={setScheduleTopic}
-              placeholder="Meeting Topic"
-              placeholderTextColor={themeColors.placeholderText}
-            />
-
-            {/* Date */}
-            <Text style={styles.scheduleModalLabel}>Date</Text>
-            <Pressable onPress={() => setShowDatePicker(true)} style={styles.scheduleModalPickerRow}>
-              <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{scheduleDate.toLocaleDateString()}</Text>
-              <Ionicons name="calendar" size={20} color="#3a8fff" />
-            </Pressable>
-            {showDatePicker && (
-              <DateTimePicker
-                value={scheduleDate}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) setScheduleDate(selectedDate);
-                }}
-              />
-            )}
-
-            {/* Start Time */}
-            <Text style={styles.scheduleModalLabel}>Start Time</Text>
-            <Pressable onPress={() => setShowTimePicker(true)} style={styles.scheduleModalPickerRow}>
-              <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{scheduleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-              <Ionicons name="time" size={20} color="#3a8fff" />
-            </Pressable>
-            {showTimePicker && (
-              <DateTimePicker
-                value={scheduleDate}
-                mode="time"
-                display="default"
-                onChange={(event, selectedTime) => {
-                  setShowTimePicker(false);
-                  if (selectedTime) {
-                    const newDate = new Date(scheduleDate);
-                    newDate.setHours(selectedTime.getHours());
-                    newDate.setMinutes(selectedTime.getMinutes());
-                    setScheduleDate(newDate);
-                  }
-                }}
-              />
-            )}
-
-            {/* Duration */}
-            <Text style={styles.scheduleModalLabel}>Duration</Text>
-            <Pressable onPress={() => setShowDurationDropdown(v => !v)} style={styles.scheduleModalPickerRow}>
-              <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{scheduleDuration} min</Text>
-              <Ionicons name="chevron-down" size={20} color="#3a8fff" />
-            </Pressable>
-            {showDurationDropdown && (
-              <View style={styles.scheduleModalDropdownMenu}>
-                {durationOptions.map((d) => (
-                  <Pressable key={d} style={styles.scheduleModalDropdownItem} onPress={() => { setScheduleDuration(d); setShowDurationDropdown(false); }}>
-                    <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{d} min</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* Custom Duration Input */}
-            <TextInput
-              style={[styles.scheduleModalInput, { backgroundColor: themeColors.inputBackground, color: themeColors.inputText }]}
-              value={String(scheduleDuration)}
-              onChangeText={v => setScheduleDuration(Number(v.replace(/[^0-9]/g, '')))}
-              keyboardType="numeric"
-              placeholder="Custom duration (min)"
-              placeholderTextColor={themeColors.placeholderText}
-            />
-
-            {/* Time Zone */}
-            <Text style={styles.scheduleModalLabel}>Time Zone</Text>
-            <Pressable onPress={() => setShowTimeZoneDropdown(v => !v)} style={styles.scheduleModalPickerRow}>
-              <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{scheduleTimeZone}</Text>
-              <Ionicons name="chevron-down" size={20} color="#3a8fff" />
-            </Pressable>
-            {showTimeZoneDropdown && (
-              <View style={styles.scheduleModalDropdownMenu}>
-                {timeZoneOptions.map((tz) => (
-                  <Pressable key={tz} style={styles.scheduleModalDropdownItem} onPress={() => { setScheduleTimeZone(tz); setShowTimeZoneDropdown(false); }}>
-                    <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{tz}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* Repeat */}
-            <Text style={styles.scheduleModalLabel}>Repeat</Text>
-            <Pressable onPress={() => setShowRepeatDropdown(v => !v)} style={styles.scheduleModalPickerRow}>
-              <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{scheduleRepeat}</Text>
-              <Ionicons name="chevron-down" size={20} color="#3a8fff" />
-            </Pressable>
-            {showRepeatDropdown && (
-              <View style={styles.scheduleModalDropdownMenu}>
-                {repeatOptions.map((r) => (
-                  <Pressable key={r} style={styles.scheduleModalDropdownItem} onPress={() => { setScheduleRepeat(r); setShowRepeatDropdown(false); }}>
-                    <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{r}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* Use PMI */}
-            <View style={styles.scheduleModalSwitchRow}>
-              <Text style={styles.scheduleModalLabel}>Use Personal Meeting ID (PMI)</Text>
-              <Switch
-                value={scheduleUsePMI}
-                onValueChange={setScheduleUsePMI}
-                thumbColor={scheduleUsePMI ? '#3a8fff' : '#888'}
-                trackColor={{ true: '#b3d8ff', false: '#ccc' }}
-              />
-            </View>
-
-            {/* Passcode */}
-            <Text style={styles.scheduleModalLabel}>Passcode</Text>
-            <TextInput
-              style={[styles.scheduleModalInput, { backgroundColor: themeColors.inputBackground, color: themeColors.inputText }]}
-              value={schedulePasscode}
-              onChangeText={setSchedulePasscode}
-              placeholder="Passcode"
-              placeholderTextColor={themeColors.placeholderText}
-            />
-
-            {/* Waiting Room */}
-            <View style={styles.scheduleModalSwitchRow}>
-              <Text style={styles.scheduleModalLabel}>Waiting Room</Text>
-              <Switch
-                value={scheduleWaitingRoom}
-                onValueChange={setScheduleWaitingRoom}
-                thumbColor={scheduleWaitingRoom ? '#3a8fff' : '#888'}
-                trackColor={{ true: '#b3d8ff', false: '#ccc' }}
-              />
-            </View>
-
-            {/* Video */}
-            <Text style={styles.scheduleModalLabel}>Video</Text>
-            <View style={styles.scheduleModalVideoRow}>
-              <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>Host</Text>
-              <Switch
-                value={scheduleHostVideo}
-                onValueChange={setScheduleHostVideo}
-                thumbColor={scheduleHostVideo ? '#3a8fff' : '#888'}
-                trackColor={{ true: '#b3d8ff', false: '#ccc' }}
-              />
-              <Text style={[styles.scheduleModalPickerText, { marginLeft: 24, color: themeColors.textPrimary }]}>Participant</Text>
-              <Switch
-                value={scheduleParticipantVideo}
-                onValueChange={setScheduleParticipantVideo}
-                thumbColor={scheduleParticipantVideo ? '#3a8fff' : '#888'}
-                trackColor={{ true: '#b3d8ff', false: '#ccc' }}
-              />
-            </View>
-
-            {/* Calendar */}
-            <Text style={styles.scheduleModalLabel}>Calendar</Text>
-            <Pressable onPress={() => setShowCalendarDropdown(v => !v)} style={styles.scheduleModalPickerRow}>
-              <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{scheduleCalendar}</Text>
-              <Ionicons name="chevron-down" size={20} color="#3a8fff" />
-            </Pressable>
-            {showCalendarDropdown && (
-              <View style={styles.scheduleModalDropdownMenu}>
-                {calendarOptions.map((c) => (
-                  <Pressable key={c} style={styles.scheduleModalDropdownItem} onPress={() => { setScheduleCalendar(c); setShowCalendarDropdown(false); }}>
-                    <Text style={[styles.scheduleModalPickerText, { color: themeColors.textPrimary }]}>{c}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* Advanced Options */}
-            <Text style={styles.scheduleModalLabel}>Advanced Options</Text>
-            <View style={styles.scheduleModalSwitchRow}>
-              <Text style={styles.scheduleModalPickerText}>Allow join before host</Text>
-              <Switch
-                value={scheduleAdvancedJoinBeforeHost}
-                onValueChange={setScheduleAdvancedJoinBeforeHost}
-                thumbColor={scheduleAdvancedJoinBeforeHost ? '#3a8fff' : '#888'}
-                trackColor={{ true: '#b3d8ff', false: '#ccc' }}
-              />
-            </View>
-            <View style={styles.scheduleModalSwitchRow}>
-              <Text style={styles.scheduleModalPickerText}>Mute participants on entry</Text>
-              <Switch
-                value={scheduleAdvancedMuteOnEntry}
-                onValueChange={setScheduleAdvancedMuteOnEntry}
-                thumbColor={scheduleAdvancedMuteOnEntry ? '#3a8fff' : '#888'}
-                trackColor={{ true: '#b3d8ff', false: '#ccc' }}
-              />
-            </View>
           </ScrollView>
-          {/* Schedule Button */}
-          <TouchableOpacity style={styles.scheduleModalButton} onPress={() => setScheduleModalVisible(false)}>
-            <Text style={styles.scheduleModalButtonText}>Schedule</Text>
+
+          {/* Join Button */}
+          <View style={[styles.joinModalButtonContainer, { backgroundColor: themeColors.background, borderTopColor: themeColors.borderColor }]}>
+            <TouchableOpacity
+              style={[styles.joinModalJoinButton, !meetingId && { opacity: 0.5, backgroundColor: '#ccc' }]}
+              disabled={!meetingId}
+              onPress={() => {
+                if (!userName) {
+                  Alert.alert('Name Required', 'Please enter your name to join the meeting');
+                  return;
+                }
+                setJoinModalVisible(false);
+                router.push({ pathname: '/meeting', params: { meetingId, userName } });
+              }}
+            >
+              <Ionicons name="videocam" size={20} color="#fff" />
+              <Text style={styles.joinModalJoinButtonText}>Join Meeting</Text>
           </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -889,9 +694,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingTop: -23,
-    paddingBottom: 0,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     elevation: 2,
     zIndex: 10,
@@ -908,168 +712,137 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     flex: 1,
-    marginLeft: -30,
+    marginLeft: -40,
+  },
+  joinModalContent: {
+    flex: 1,
+    paddingTop: 24,
+    paddingHorizontal: 18,
+  },
+  joinModalSection: {
+    marginBottom: 28,
+  },
+  joinModalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   joinModalInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 28,
-    marginHorizontal: 18,
-    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  joinModalInputIcon: {
+    marginRight: 12,
   },
   joinModalInput: {
     flex: 1,
     fontSize: 16,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginRight: 8,
+    paddingVertical: 0,
   },
-  joinModalInputIcon: {
+  joinModalDropdownButton: {
     padding: 8,
+    marginLeft: 8,
   },
   meetingIdDropdown: {
     position: 'absolute',
-    top: 48,
+    top: 52,
     left: 0,
     right: 0,
-    backgroundColor: '#292929',
-    borderRadius: 8,
+    borderRadius: 12,
     zIndex: 100,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 8,
-    paddingVertical: 4,
+    paddingVertical: 8,
     marginHorizontal: 0,
-    maxHeight: 180,
+    maxHeight: 200,
   },
   meetingIdDropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
   },
   meetingIdDropdownText: {
-    color: '#fff',
     fontSize: 16,
+    marginLeft: 12,
   },
   meetingIdDropdownEmpty: {
-    color: '#888',
     fontSize: 15,
-    padding: 12,
+    padding: 16,
     textAlign: 'center',
   },
-  scheduleModalContainer: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+  joinModalLinkToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
   },
-  scheduleModalHeaderBar: {
+  joinModalLinkName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 12,
+  },
+  joinModalOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 18,
-    backgroundColor: '#232323',
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#292929',
-    elevation: 2,
-    zIndex: 10,
   },
-  scheduleModalBackPressable: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    minWidth: 40,
+  joinModalOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  joinModalOptionLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 12,
+  },
+  joinModalInfoSection: {
+    flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  scheduleModalHeaderTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    flex: 1,
-    marginLeft: -30,
-  },
-  scheduleModalForm: {
-    flex: 1,
-    paddingHorizontal: 18,
-    paddingTop: 18,
-  },
-  scheduleModalLabel: {
-    color: '#bbb',
-    fontSize: 15,
-    fontWeight: '600',
     marginTop: 16,
-    marginBottom: 4,
+    paddingHorizontal: 4,
   },
-  scheduleModalInput: {
-    backgroundColor: '#292929',
-    color: '#fff',
-    fontSize: 16,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 2,
+  joinModalInfoText: {
+    fontSize: 14,
+    fontWeight: '400',
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 20,
   },
-  scheduleModalPickerRow: {
+  joinModalButtonContainer: {
+    padding: 18,
+    borderTopWidth: 1,
+  },
+  joinModalJoinButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#292929',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 2,
-    marginTop: 2,
-  },
-  scheduleModalPickerText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  scheduleModalSwitchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 2,
-  },
-  scheduleModalVideoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  scheduleModalButton: {
+    justifyContent: 'center',
     backgroundColor: '#1877f2',
     borderRadius: 12,
-    marginHorizontal: 18,
-    marginBottom: 24,
     paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    shadowColor: '#1877f2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  scheduleModalButtonText: {
+  joinModalJoinButtonText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 18,
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  scheduleModalDropdownMenu: {
-    backgroundColor: '#292929',
-    borderRadius: 8,
-    marginTop: 2,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 100,
-  },
-  scheduleModalDropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    fontSize: 16,
+    marginLeft: 8,
   },
   shareModalOverlay: {
     flex: 1,
