@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
     Alert,
     Image,
@@ -12,10 +11,12 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAuth } from '../../components/auth-context';
 import ThemeAwareModal from '../../components/ThemeAwareModal';
 import { useThemeContext } from '../../components/ThemeContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { useAuth } from '../auth-context';
+import { loadNotificationSettings, NotificationSettings } from '../../utils/notifications';
 
 interface SettingItem {
   icon: string;
@@ -45,17 +46,15 @@ export default function SettingsScreen() {
   const [videoQuality, setVideoQuality] = useState('HD');
   const [audioQuality, setAudioQuality] = useState('High');
   
-  // Profile data state
-  const [profileData, setProfileData] = useState<{
-    name: string;
-    email: string;
-    phone: string;
-    profilePhoto: string | null;
-  } | null>(null);
+  // Notification settings state
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    preference: 'sound',
+    enabled: true,
+  });
   
   const { theme, setTheme } = useThemeContext();
   const { permissions, requestCameraPermission, requestMicrophonePermission, requestCalendarPermission, requestContactsPermission, showPermissionAlert } = usePermissions();
-  const { user, logout, clearLoggedOutStatus } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
   const isDarkTheme = theme === 'dark';
 
@@ -64,27 +63,40 @@ export default function SettingsScreen() {
   const [modalTitle, setModalTitle] = useState('');
   const [modalOptions, setModalOptions] = useState<any[]>([]);
 
-  // Load profile data
-  useEffect(() => {
-    loadProfileData();
-  }, []);
+  // Add modal state for theme-aware alerts
+  const [alertModal, setAlertModal] = useState<{visible: boolean, title: string, message: string, options: any[]}>({visible: false, title: '', message: '', options: []});
 
-  // Load profile data on focus
-  useFocusEffect(
-    useCallback(() => {
-      loadProfileData();
-    }, [])
-  );
+  const showThemeAlert = (title: string, message: string, options: any[]) => {
+    setAlertModal({ visible: true, title, message, options });
+  };
 
-  const loadProfileData = async () => {
+  // Remove profile data loading from AsyncStorage
+
+  const loadNotificationSettingsData = async () => {
     try {
-      const storedProfile = await AsyncStorage.getItem('user_profile_data');
-      if (storedProfile) {
-        const data = JSON.parse(storedProfile);
-        setProfileData(data);
-      }
+      const settings = await loadNotificationSettings();
+      setNotificationSettings(settings);
     } catch (error) {
-      console.error('Error loading profile data:', error);
+      console.error('Error loading notification settings:', error);
+    }
+  };
+
+  const getCurrentReminderSummary = () => {
+    if (!notificationSettings.enabled) {
+      return 'Disabled';
+    }
+    
+    switch (notificationSettings.preference) {
+      case 'notification-only':
+        return 'Notification Only';
+      case 'sound':
+        return 'Notification + Sound';
+      case 'vibration':
+        return 'Notification + Vibration';
+      case 'sound-vibration':
+        return 'Notification + Sound + Vibration';
+      default:
+        return 'Notification + Sound';
     }
   };
 
@@ -145,6 +157,77 @@ export default function SettingsScreen() {
     setModalVisible(true);
   };
 
+  const handlePersonalInfo = () => {
+    setModalTitle('Personal Information');
+    setModalOptions([
+      { 
+        label: 'Edit Profile', 
+        value: 'edit', 
+        icon: 'person-outline',
+        onPress: () => {
+          setModalVisible(false);
+          router.push('/edit-profile');
+        }
+      },
+      { 
+        label: 'Change Password', 
+        value: 'password', 
+        icon: 'lock-closed-outline',
+        onPress: () => {
+          setModalVisible(false);
+          router.push('/change-password' as any);
+        }
+      },
+      { 
+        label: 'Privacy Settings', 
+        value: 'privacy', 
+        icon: 'shield-outline',
+        onPress: () => {
+          setModalVisible(false);
+          router.push('/privacy-settings' as any); // Use string path
+        }
+      },
+      { 
+        label: 'Cancel', 
+        value: 'cancel', 
+        icon: 'close-outline',
+        onPress: () => setModalVisible(false)
+      },
+    ]);
+    setModalVisible(true);
+  };
+
+  const handleSecurity = () => {
+    setModalTitle('Security');
+    setModalOptions([
+      { 
+        label: 'Edit Profile', 
+        value: 'edit-profile', 
+        icon: 'person-outline',
+        onPress: () => {
+          setModalVisible(false);
+          router.push('/edit-profile');
+        }
+      },
+      { 
+        label: 'Change Password', 
+        value: 'change-password', 
+        icon: 'lock-closed-outline',
+        onPress: () => {
+          setModalVisible(false);
+          router.push('/change-password');
+        }
+      },
+      { 
+        label: 'Cancel', 
+        value: 'cancel', 
+        icon: 'close-outline',
+        onPress: () => setModalVisible(false)
+      },
+    ]);
+    setModalVisible(true);
+  };
+
   const handlePress = (label: string) => {
     let options = [];
     
@@ -175,8 +258,8 @@ export default function SettingsScreen() {
             value: 'privacy', 
             icon: 'shield-outline',
             onPress: () => {
-              Alert.alert('Privacy Settings', 'Privacy settings will be implemented here');
               setModalVisible(false);
+              router.push('/privacy-settings' as any);
             }
           },
           { 
@@ -188,33 +271,24 @@ export default function SettingsScreen() {
         ];
         break;
       case 'Security':
-        setModalTitle('Security Settings');
+        setModalTitle('Security');
         options = [
           { 
-            label: 'Two-Factor Authentication', 
-            value: '2fa', 
-            icon: 'shield-checkmark-outline',
+            label: 'Edit Profile', 
+            value: 'edit-profile', 
+            icon: 'person-outline',
             onPress: () => {
-              Alert.alert('Two-Factor Authentication', '2FA setup will be implemented here');
               setModalVisible(false);
+              router.push('/edit-profile');
             }
           },
           { 
-            label: 'Login History', 
-            value: 'history', 
-            icon: 'time-outline',
+            label: 'Change Password', 
+            value: 'change-password', 
+            icon: 'lock-closed-outline',
             onPress: () => {
-              Alert.alert('Login History', 'Login history will be implemented here');
               setModalVisible(false);
-            }
-          },
-          { 
-            label: 'Active Sessions', 
-            value: 'sessions', 
-            icon: 'desktop-outline',
-            onPress: () => {
-              Alert.alert('Active Sessions', 'Active sessions will be implemented here');
-              setModalVisible(false);
+              router.push('/change-password');
             }
           },
           { 
@@ -278,7 +352,7 @@ export default function SettingsScreen() {
           { 
             label: 'Audio Quality', 
             value: 'quality', 
-            icon: 'musical-notes-outline',
+            icon: 'musical-note-outline',
             onPress: () => {
               Alert.alert('Audio Quality', 'Audio quality settings will be implemented here');
               setModalVisible(false);
@@ -305,7 +379,7 @@ export default function SettingsScreen() {
         setModalTitle('Screen Sharing Settings');
         options = [
           { 
-            label: 'Screen Sharing Quality', 
+            label: 'Quality Settings', 
             value: 'quality', 
             icon: 'desktop-outline',
             onPress: () => {
@@ -314,49 +388,11 @@ export default function SettingsScreen() {
             }
           },
           { 
-            label: 'Permissions', 
-            value: 'permissions', 
-            icon: 'shield-outline',
+            label: 'Audio Sharing', 
+            value: 'audio', 
+            icon: 'volume-high-outline',
             onPress: () => {
-              Alert.alert('Screen Sharing Permissions', 'Screen sharing permissions will be implemented here');
-              setModalVisible(false);
-            }
-          },
-          { 
-            label: 'Cancel', 
-            value: 'cancel', 
-            icon: 'close-outline',
-            onPress: () => setModalVisible(false)
-          },
-        ];
-        break;
-      case 'Help & Support':
-        setModalTitle('Help & Support');
-        options = [
-          { 
-            label: 'FAQ', 
-            value: 'faq', 
-            icon: 'help-circle-outline',
-            onPress: () => {
-              Alert.alert('FAQ', 'Frequently asked questions will be implemented here');
-              setModalVisible(false);
-            }
-          },
-          { 
-            label: 'Contact Support', 
-            value: 'contact', 
-            icon: 'chatbubble-outline',
-            onPress: () => {
-              Alert.alert('Contact Support', 'Contact support will be implemented here');
-              setModalVisible(false);
-            }
-          },
-          { 
-            label: 'Report Bug', 
-            value: 'bug', 
-            icon: 'bug-outline',
-            onPress: () => {
-              Alert.alert('Report Bug', 'Bug reporting will be implemented here');
+              Alert.alert('Audio Sharing', 'Audio sharing settings will be implemented here');
               setModalVisible(false);
             }
           },
@@ -369,14 +405,7 @@ export default function SettingsScreen() {
         ];
         break;
       default:
-        options = [
-          { 
-            label: 'Cancel', 
-            value: 'cancel', 
-            icon: 'close-outline',
-            onPress: () => setModalVisible(false)
-          },
-        ];
+        return;
     }
     
     setModalOptions(options);
@@ -384,101 +413,78 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = async () => {
-    Alert.alert(
+    showThemeAlert(
       'Delete Account',
       'Are you sure you want to delete your account? This action cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Clear all user data from AsyncStorage
-              await AsyncStorage.removeItem('user_profile_data');
-              await AsyncStorage.removeItem('auth_user');
-              await AsyncStorage.removeItem('has_logged_out');
-              
-              // Reset profile data state
-              setProfileData(null);
-              
-              Alert.alert(
-                'Account Deleted',
-                'Your account has been deleted successfully.',
-                [{ text: 'OK' }]
-              );
-            } catch (error) {
-              console.error('Error deleting account:', error);
-              Alert.alert('Error', 'Failed to delete account. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Sign Out', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              // The AuthProvider will handle the navigation automatically
-              // through the index.tsx routing logic
-            } catch (error) {
-              console.error('Error during logout:', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
-          }
-        }
+        { label: 'Cancel', value: 'cancel', onPress: () => setAlertModal({ ...alertModal, visible: false }) },
+        { label: 'Delete', value: 'delete', destructive: true, onPress: async () => { setAlertModal({ ...alertModal, visible: false }); try { await logout(); Alert.alert('Account Deleted', 'Your account has been deleted successfully.'); } catch (error) { Alert.alert('Error', 'Failed to delete account. Please try again.'); } } },
       ]
     );
   };
 
   const handlePermissionRequest = async (permissionType: string) => {
     try {
-      let status;
+      let status: string = 'denied';
+      let permissionLabel = '';
       switch (permissionType) {
         case 'camera':
           status = await requestCameraPermission();
+          permissionLabel = 'Camera';
           break;
         case 'microphone':
           status = await requestMicrophonePermission();
+          permissionLabel = 'Microphone';
           break;
         case 'calendar':
           status = await requestCalendarPermission();
+          permissionLabel = 'Calendar';
           break;
         case 'contacts':
           status = await requestContactsPermission();
+          permissionLabel = 'Contacts';
           break;
-        default:
-          return;
       }
-
-      if (status === 'denied') {
-        showPermissionAlert(permissionType.charAt(0).toUpperCase() + permissionType.slice(1));
+      if (status !== 'granted') {
+        showThemeAlert(
+          `${permissionLabel} Permission Required`,
+          `Please grant ${permissionLabel.toLowerCase()} permission to use this feature.`,
+          [
+            { label: 'OK', value: 'ok', onPress: () => setAlertModal({ ...alertModal, visible: false }) }
+          ]
+        );
+      } else {
+        showThemeAlert(
+          'Permission Granted',
+          `${permissionLabel} permission has been granted.`,
+          [
+            { label: 'OK', value: 'ok', onPress: () => setAlertModal({ ...alertModal, visible: false }) }
+          ]
+        );
       }
     } catch (error) {
-      console.error('Error requesting permission:', error);
+      showThemeAlert(
+        'Error',
+        `Failed to request ${permissionType} permission.`,
+        [
+          { label: 'OK', value: 'ok', onPress: () => setAlertModal({ ...alertModal, visible: false }) }
+        ]
+      );
     }
   };
 
   const getPermissionStatusColor = (status: string) => {
     switch (status) {
       case 'granted':
-        return '#34C759';
+        return themeColors.success;
       case 'denied':
-        return '#FF3B30';
+        return themeColors.error;
+      case 'undetermined':
+        return themeColors.warning;
       case 'restricted':
-        return '#FF9500';
+        return themeColors.warning;
       default:
-        return '#8E8E93';
+        return themeColors.textSecondary;
     }
   };
 
@@ -488,29 +494,13 @@ export default function SettingsScreen() {
         return 'Granted';
       case 'denied':
         return 'Denied';
+      case 'undetermined':
+        return 'Not Set';
       case 'restricted':
         return 'Restricted';
       default:
-        return 'Not Determined';
+        return 'Unknown';
     }
-  };
-
-  const handleResetAppState = () => {
-    Alert.alert(
-      'Reset App State',
-      'This will clear your login status and show the signup screen next time you open the app. This is for testing purposes.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
-          style: 'destructive',
-          onPress: async () => {
-            await clearLoggedOutStatus();
-            Alert.alert('Success', 'App state has been reset. Please restart the app to see the signup screen.');
-          }
-        }
-      ]
-    );
   };
 
   const handleTestAudioVideo = () => {
@@ -543,20 +533,39 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleThemeToggle = async (value: boolean) => {
+    const newTheme = value ? 'dark' : 'light';
+    setTheme(newTheme as 'light' | 'dark');
+    // No AsyncStorage persistence
+  };
+
   const settingsSections: { title: string; items: SettingItem[] }[] = [
+    {
+      title: 'Appearance',
+      items: [
+        {
+          icon: 'moon-outline',
+          label: 'Dark Mode',
+          onPress: () => handleThemeToggle(!isDarkTheme),
+          showSwitch: true,
+          switchValue: isDarkTheme,
+          onSwitchChange: handleThemeToggle,
+        },
+      ],
+    },
     {
       title: 'Account',
       items: [
         {
           icon: 'person-circle-outline',
           label: 'Personal Information',
-          onPress: () => handlePress('Personal Information'),
+          onPress: () => router.push('/personal-information' as any),
           showArrow: true,
         },
         {
           icon: 'shield-outline',
           label: 'Security',
-          onPress: () => handlePress('Security'),
+          onPress: handleSecurity,
           showArrow: true,
         },
         {
@@ -580,49 +589,12 @@ export default function SettingsScreen() {
       title: 'Meeting Reminders',
       items: [
         {
-          icon: 'calendar-outline',
-          label: 'Meeting Reminders',
+          icon: 'settings-outline',
+          label: 'Reminder Settings',
           onPress: () => {
-            setMeetingReminders(!meetingReminders);
-            Alert.alert(
-              'Meeting Reminders',
-              `Meeting reminders ${!meetingReminders ? 'enabled' : 'disabled'}`,
-              [{ text: 'OK' }]
-            );
+            router.push('/reminder-settings');
           },
-          showSwitch: true,
-          switchValue: meetingReminders,
-          onSwitchChange: setMeetingReminders,
-        },
-        {
-          icon: 'volume-high-outline',
-          label: 'Sound',
-          onPress: () => {
-            setSoundEnabled(!soundEnabled);
-            Alert.alert(
-              'Sound',
-              `Sound ${!soundEnabled ? 'enabled' : 'disabled'}`,
-              [{ text: 'OK' }]
-            );
-          },
-          showSwitch: true,
-          switchValue: soundEnabled,
-          onSwitchChange: setSoundEnabled,
-        },
-        {
-          icon: 'phone-portrait-outline',
-          label: 'Vibration',
-          onPress: () => {
-            setVibrationEnabled(!vibrationEnabled);
-            Alert.alert(
-              'Vibration',
-              `Vibration ${!vibrationEnabled ? 'enabled' : 'disabled'}`,
-              [{ text: 'OK' }]
-            );
-          },
-          showSwitch: true,
-          switchValue: vibrationEnabled,
-          onSwitchChange: setVibrationEnabled,
+          showArrow: true,
         },
       ],
     },
@@ -668,202 +640,16 @@ export default function SettingsScreen() {
       ],
     },
     {
-      title: 'Meeting Settings',
-      items: [
-        {
-          icon: 'videocam-outline',
-          label: 'Video',
-          onPress: () => handlePress('Video'),
-          showArrow: true,
-        },
-        {
-          icon: 'mic-outline',
-          label: 'Audio Settings',
-          onPress: () => handlePress('Audio Settings'),
-          showArrow: true,
-        },
-        {
-          icon: 'desktop-outline',
-          label: 'Screen Sharing',
-          onPress: () => handlePress('Screen Sharing'),
-          showArrow: true,
-        },
-      ],
-    },
-    {
-      title: 'Audio/Video Settings',
-      items: [
-        {
-          icon: 'videocam-outline',
-          label: 'Camera',
-          onPress: () => {
-            setCameraEnabled(!cameraEnabled);
-            Alert.alert(
-              'Camera',
-              `Camera ${!cameraEnabled ? 'enabled' : 'disabled'}`,
-              [{ text: 'OK' }]
-            );
-          },
-          showSwitch: true,
-          switchValue: cameraEnabled,
-          onSwitchChange: setCameraEnabled,
-        },
-        {
-          icon: 'mic-outline',
-          label: 'Microphone',
-          onPress: () => {
-            setMicrophoneEnabled(!microphoneEnabled);
-            Alert.alert(
-              'Microphone',
-              `Microphone ${!microphoneEnabled ? 'enabled' : 'disabled'}`,
-              [{ text: 'OK' }]
-            );
-          },
-          showSwitch: true,
-          switchValue: microphoneEnabled,
-          onSwitchChange: setMicrophoneEnabled,
-        },
-        {
-          icon: 'volume-high-outline',
-          label: 'Echo Cancellation',
-          onPress: () => {
-            setEchoCancellation(!echoCancellation);
-            Alert.alert(
-              'Echo Cancellation',
-              `Echo cancellation ${!echoCancellation ? 'enabled' : 'disabled'}`,
-              [{ text: 'OK' }]
-            );
-          },
-          showSwitch: true,
-          switchValue: echoCancellation,
-          onSwitchChange: setEchoCancellation,
-        },
-        {
-          icon: 'musical-notes-outline',
-          label: 'Noise Suppression',
-          onPress: () => {
-            setNoiseSuppression(!noiseSuppression);
-            Alert.alert(
-              'Noise Suppression',
-              `Noise suppression ${!noiseSuppression ? 'enabled' : 'disabled'}`,
-              [{ text: 'OK' }]
-            );
-          },
-          showSwitch: true,
-          switchValue: noiseSuppression,
-          onSwitchChange: setNoiseSuppression,
-        },
-        {
-          icon: 'settings-outline',
-          label: 'Video Quality',
-          onPress: () => {
-            Alert.alert(
-              'Video Quality',
-              'Select video quality:',
-              [
-                { text: 'Low (360p)', onPress: () => setVideoQuality('Low') },
-                { text: 'Medium (720p)', onPress: () => setVideoQuality('Medium') },
-                { text: 'High (1080p)', onPress: () => setVideoQuality('High') },
-                { text: 'Cancel', style: 'cancel' },
-              ]
-            );
-          },
-          showArrow: true,
-          showStatus: true,
-          status: videoQuality,
-          statusColor: themeColors.accent,
-        },
-        {
-          icon: 'musical-note-outline',
-          label: 'Audio Quality',
-          onPress: () => {
-            Alert.alert(
-              'Audio Quality',
-              'Select audio quality:',
-              [
-                { text: 'Low', onPress: () => setAudioQuality('Low') },
-                { text: 'Medium', onPress: () => setAudioQuality('Medium') },
-                { text: 'High', onPress: () => setAudioQuality('High') },
-                { text: 'Cancel', style: 'cancel' },
-              ]
-            );
-          },
-          showArrow: true,
-          showStatus: true,
-          status: audioQuality,
-          statusColor: themeColors.accent,
-        },
-        {
-          icon: 'play-circle-outline',
-          label: 'Test Audio/Video',
-          onPress: handleTestAudioVideo,
-          showArrow: true,
-        },
-      ],
-    },
-    {
-      title: 'App Settings',
-      items: [
-        {
-          icon: 'moon-outline',
-          label: 'Dark Mode',
-          onPress: () => {
-            const newTheme = isDarkTheme ? 'light' : 'dark';
-            setTheme(newTheme);
-            Alert.alert(
-              'Theme Changed',
-              `Switched to ${newTheme} mode`,
-              [{ text: 'OK' }]
-            );
-          },
-          showSwitch: true,
-          switchValue: isDarkTheme,
-          onSwitchChange: (value: boolean) => setTheme(value ? 'dark' : 'light'),
-        },
-        {
-          icon: 'language-outline',
-          label: 'Language',
-          onPress: () => {
-            Alert.alert(
-              'Language Settings',
-              'Language settings will be implemented here. You can choose from English, Spanish, French, and other languages.',
-              [
-                { text: 'English', onPress: () => Alert.alert('Language', 'English selected') },
-                { text: 'Spanish', onPress: () => Alert.alert('Language', 'Spanish selected') },
-                { text: 'French', onPress: () => Alert.alert('Language', 'French selected') },
-                { text: 'Cancel', style: 'cancel' },
-              ]
-            );
-          },
-          showArrow: true,
-        },
-        {
-          icon: 'help-circle-outline',
-          label: 'Help & Support',
-          onPress: () => handlePress('Help & Support'),
-          showArrow: true,
-        },
-        {
-          icon: 'information-circle-outline',
-          label: 'About',
-          onPress: () => {
-            Alert.alert(
-              'About SyncMeet',
-              'SyncMeet v1.0.0\n\nA modern video conferencing app built with React Native and Expo.\n\nFeatures:\n• High-quality video calls\n• Screen sharing\n• Meeting scheduling\n• Calendar integration\n• Dark/Light themes',
-              [{ text: 'OK' }]
-            );
-          },
-          showArrow: true,
-        },
-      ],
-    },
-    {
       title: 'Account Actions',
       items: [
         {
           icon: 'log-out-outline',
           label: 'Sign Out',
-          onPress: handleLogout,
+          onPress: async () => {
+            await logout();
+            Toast.show({ type: 'success', text1: 'Logged out', text2: 'You have been logged out.' });
+            router.replace('/login');
+          },
           showArrow: false,
           destructive: true,
         },
@@ -874,13 +660,6 @@ export default function SettingsScreen() {
           showArrow: false,
           destructive: true,
         },
-        {
-          icon: 'refresh-outline',
-          label: 'Reset App State (Testing)',
-          onPress: handleResetAppState,
-          showArrow: false,
-          destructive: false,
-        },
       ],
     },
   ];
@@ -889,32 +668,31 @@ export default function SettingsScreen() {
     <ScrollView style={[styles.container, { backgroundColor: themeColors.background }]}>
       {/* Profile Section */}
       <View style={[styles.profileSection, { backgroundColor: themeColors.cardBackground }]}>
-        <TouchableOpacity onPress={handleEditProfile} style={styles.profileContent}>
+        <View style={styles.profileContent}>
           <Image
             source={
-              profileData?.profilePhoto 
-                ? { uri: profileData.profilePhoto }
+              user?.profilePhoto
+                ? { uri: user.profilePhoto }
                 : require('../../assets/images/profile.jpg')
             }
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
             <Text style={[styles.profileName, { color: themeColors.textPrimary }]}>
-              {profileData?.name || user?.name || user?.email?.split('@')[0] || 'Enter your username'}
+              {user?.fullName || user?.email?.split('@')[0] || 'Enter your username'}
             </Text>
             <Text style={[styles.profileEmail, { color: themeColors.textSecondary }]}>
-              {profileData?.email || user?.email || 'Enter your email'}
+              {user?.email || 'Enter your email'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color={themeColors.textSecondary} />
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* Settings Summary */}
       <View style={styles.summarySection}>
         <Text style={[styles.sectionTitle, { color: themeColors.textSecondary }]}>
           Current Settings
-            </Text>
+        </Text>
         <View style={[styles.summaryContent, { backgroundColor: themeColors.cardBackground }]}>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: themeColors.textSecondary }]}>Theme:</Text>
@@ -937,7 +715,7 @@ export default function SettingsScreen() {
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: themeColors.textSecondary }]}>Video Quality:</Text>
             <Text style={[styles.summaryValue, { color: themeColors.accent }]}>{videoQuality}</Text>
-        </View>
+          </View>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: themeColors.textSecondary }]}>Audio Quality:</Text>
             <Text style={[styles.summaryValue, { color: themeColors.accent }]}>{audioQuality}</Text>
@@ -953,7 +731,7 @@ export default function SettingsScreen() {
           </Text>
           <View style={[styles.sectionContent, { backgroundColor: themeColors.cardBackground }]}>
             {section.items.map((item, itemIndex) => (
-        <TouchableOpacity
+              <TouchableOpacity
                 key={itemIndex}
                 style={[
                   styles.settingItem,
@@ -972,14 +750,14 @@ export default function SettingsScreen() {
                     { color: item.destructive ? '#FF3B30' : themeColors.textPrimary }
                   ]}>
                     {item.label}
-            </Text>
-      </View>
+                  </Text>
+                </View>
 
                 <View style={styles.settingItemRight}>
                   {item.showStatus && (
                     <Text style={[styles.statusText, { color: item.statusColor }]}>
                       {item.status}
-            </Text>
+                    </Text>
                   )}
                   
                   {item.showSwitch && (
@@ -997,8 +775,8 @@ export default function SettingsScreen() {
                   {item.showArrow && (
                     <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
                   )}
-          </View>
-        </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -1011,11 +789,20 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
+      <Toast />
+
       <ThemeAwareModal
         visible={modalVisible}
         title={modalTitle}
         options={modalOptions}
         onClose={() => setModalVisible(false)}
+      />
+
+      <ThemeAwareModal
+        visible={alertModal.visible}
+        onClose={() => setAlertModal({ ...alertModal, visible: false })}
+        title={alertModal.title}
+        options={alertModal.options}
       />
     </ScrollView>
   );

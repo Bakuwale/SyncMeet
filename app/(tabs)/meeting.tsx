@@ -69,7 +69,17 @@ export default function MeetingsTab() {
     accent: '#007AFF',
   };
 
+  // Helper: returns true if meeting should be visible (upcoming or ended within 24 hours)
+  function isVisibleMeeting(meeting: any) {
+    const now = new Date();
+    const start = new Date(meeting.date);
+    const end = new Date(start.getTime() + (meeting.duration || 0) * 60000);
+    // Show if meeting ends in the future, or ended within the last 24 hours
+    return end.getTime() + 24 * 60 * 60 * 1000 > now.getTime();
+  }
+
   const filteredMeetings = meetings
+    .filter(isVisibleMeeting)
     .filter(m =>
       m.title.toLowerCase().includes(search.toLowerCase())
     )
@@ -141,11 +151,12 @@ export default function MeetingsTab() {
           keyExtractor={item => item.id}
           renderItem={({ item }) => <MeetingCard meeting={item} themeColors={themeColors} onJoin={handleJoinMeeting} />}
           ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
-              No meetings found.
-            </Text>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 60 }}>
+              <Ionicons name="calendar-outline" size={48} color={themeColors.textSecondary} style={{ marginBottom: 16 }} />
+              <Text style={[styles.emptyText, { color: themeColors.textSecondary, fontSize: 18, textAlign: 'center' }]}>No meetings scheduled.</Text>
+            </View>
           }
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
         />
       </View>
 

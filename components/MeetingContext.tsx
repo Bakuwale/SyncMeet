@@ -1,4 +1,12 @@
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import Toast from 'react-native-toast-message';
+import {
+    cancelMeetingReminder,
+    initializeNotifications,
+    loadNotificationSettings,
+    scheduleMeetingReminder,
+    updateMeetingReminder,
+} from '../utils/notifications';
 
 export type Meeting = {
   id: string;
@@ -25,53 +33,87 @@ export const useMeetings = () => {
 };
 
 export const MeetingProvider = ({ children }: { children: ReactNode }) => {
-  // Initialize with some sample meetings
-  const [meetings, setMeetings] = useState<Meeting[]>([
-    {
-      id: '1',
-      title: 'Team Standup',
-      description: 'Daily team standup meeting to discuss progress and blockers',
-      date: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-      duration: 30,
-      participants: 8,
-    },
-    {
-      id: '2',
-      title: 'Project Review',
-      description: 'Weekly project review with stakeholders',
-      date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-      duration: 60,
-      participants: 12,
-    },
-    {
-      id: '3',
-      title: 'Client Meeting',
-      description: 'Meeting with client to discuss requirements',
-      date: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday (past meeting)
-      duration: 45,
-      participants: 5,
-    },
-  ]);
+  // Initialize with an empty array (no dummy meetings)
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
 
-  const addMeeting = (meeting: Omit<Meeting, 'id'>) => {
+  // Initialize notifications on app start
+  useEffect(() => {
+    initializeNotifications();
+  }, []);
+
+  const addMeeting = async (meeting: Omit<Meeting, 'id'>) => {
     // Generate a random 9-digit meeting ID
     const id = Math.floor(100000000 + Math.random() * 900000000).toString();
-    setMeetings(prev => [{ ...meeting, id }, ...prev]);
+    const newMeeting = { ...meeting, id };
+    
+    setMeetings(prev => [newMeeting, ...prev]);
+
+    // Schedule notification for the new meeting
+    try {
+      const notificationSettings = await loadNotificationSettings();
+      const notificationId = await scheduleMeetingReminder(
+        newMeeting.id,
+        newMeeting.title,
+        newMeeting.date,
+        notificationSettings
+      );
+      if (notificationId) {
+        Toast.show({
+          type: 'success',
+          text1: 'Meeting reminder set for 5 minutes before your meeting.',
+          position: 'bottom',
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to schedule reminder.',
+        text2: 'Try again later.',
+        position: 'bottom',
+      });
+    }
   };
 
-  const deleteMeeting = (id: string) => {
+  const deleteMeeting = async (id: string) => {
+    // Cancel notification before deleting meeting
+    try {
+      await cancelMeetingReminder(id);
+    } catch (error) {
+      console.error('Error cancelling notification for deleted meeting:', error);
+    }
+    
     setMeetings(prev => prev.filter(meeting => meeting.id !== id));
   };
 
-  const updateMeeting = (id: string, updates: Partial<Meeting>) => {
-    setMeetings(prev => prev.map(meeting => 
+  const updateMeeting = async (id: string, updates: Partial<Meeting>) => {
+    const updatedMeetings = meetings.map(meeting => 
       meeting.id === id ? { ...meeting, ...updates } : meeting
-    ));
+    );
+    setMeetings(updatedMeetings);
+
+    // Update notification if meeting time or title changed
+    if (updates.date || updates.title) {
+      try {
+        const updatedMeeting = updatedMeetings.find(m => m.id === id);
+        if (updatedMeeting) {
+          const notificationSettings = await loadNotificationSettings();
+          await updateMeetingReminder(
+            updatedMeeting.id,
+            updatedMeeting.title,
+            updatedMeeting.date,
+            notificationSettings
+          );
+        }
+      } catch (error) {
+        console.error('Error updating notification for meeting:', error);
+      }
+    }
   };
 
   return (
     <MeetingContext.Provider value={{ meetings, addMeeting, deleteMeeting, updateMeeting }}>
       {children}
+      <Toast />
     </MeetingContext.Provider>
   );
 };

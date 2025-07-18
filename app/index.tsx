@@ -1,26 +1,14 @@
-import { Redirect } from 'expo-router';
-import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { useAuth } from './auth-context';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { useAuth } from '../components/auth-context';
 
 export default function Index() {
-  const { user, loading, hasLoggedOut } = useAuth();
+  const { user } = useAuth();
 
-  // Show loading screen while checking authentication
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
+  useEffect(() => {
+    // Always redirect to login screen on app start
+    router.replace('/login');
+  }, []);
 
-  // If user is authenticated, redirect to main app
-  if (user) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  // If user has logged out before, show login screen
-  // Otherwise, show signup screen for new users
-  return <Redirect href={hasLoggedOut ? "/login" : "/signup"} />;
-} 
+  return null; // return nothing since we’re redirecting
+}

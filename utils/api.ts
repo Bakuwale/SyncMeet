@@ -1,5 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 // API Configuration
 export const API_CONFIG = {
   BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080',
@@ -159,34 +157,6 @@ class ApiClient {
     this.retryAttempts = API_CONFIG.RETRY_ATTEMPTS;
   }
 
-  // Get authentication token
-  private async getAuthToken(): Promise<string | null> {
-    try {
-      return await AsyncStorage.getItem('auth_token');
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
-  }
-
-  // Set authentication token
-  private async setAuthToken(token: string): Promise<void> {
-    try {
-      await AsyncStorage.setItem('auth_token', token);
-    } catch (error) {
-      console.error('Error setting auth token:', error);
-    }
-  }
-
-  // Remove authentication token
-  private async removeAuthToken(): Promise<void> {
-    try {
-      await AsyncStorage.removeItem('auth_token');
-    } catch (error) {
-      console.error('Error removing auth token:', error);
-    }
-  }
-
   // Create headers for requests
   private async createHeaders(includeAuth: boolean = true): Promise<HeadersInit> {
     const headers: HeadersInit = {
@@ -195,10 +165,11 @@ class ApiClient {
     };
 
     if (includeAuth) {
-      const token = await this.getAuthToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      // No authentication token handling for demo purposes
+      // const token = await this.getAuthToken();
+      // if (token) {
+      //   headers['Authorization'] = `Bearer ${token}`;
+      // }
     }
 
     return headers;
@@ -221,7 +192,8 @@ class ApiClient {
       if (!response.ok) {
         // Handle authentication errors
         if (response.status === 401) {
-          await this.removeAuthToken();
+          // No token removal for demo purposes
+          // await this.removeAuthToken();
           throw new Error('Authentication failed. Please login again.');
         }
 
@@ -317,7 +289,8 @@ class ApiClient {
     const response = await this.post(API_ENDPOINTS.AUTH.LOGIN, credentials, false);
     
     if (response.success && response.data) {
-      await this.setAuthToken(response.data.token);
+      // No token setting for demo purposes
+      // await this.setAuthToken(response.data.token);
     }
     
     return response;
@@ -327,7 +300,8 @@ class ApiClient {
     const response = await this.post(API_ENDPOINTS.AUTH.SIGNUP, userData, false);
     
     if (response.success && response.data) {
-      await this.setAuthToken(response.data.token);
+      // No token setting for demo purposes
+      // await this.setAuthToken(response.data.token);
     }
     
     return response;
@@ -335,7 +309,7 @@ class ApiClient {
 
   async logout(): Promise<ApiResponse<void>> {
     const response = await this.post(API_ENDPOINTS.AUTH.LOGOUT, {});
-    await this.removeAuthToken();
+    // No token removal for demo purposes
     return response;
   }
 
@@ -343,7 +317,8 @@ class ApiClient {
     const response = await this.post(API_ENDPOINTS.AUTH.REFRESH, {}, false);
     
     if (response.success && response.data) {
-      await this.setAuthToken(response.data.token);
+      // No token setting for demo purposes
+      // await this.setAuthToken(response.data.token);
     }
     
     return response;

@@ -1,39 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Animated,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
     SafeAreaView,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import { useThemeContext } from '../components/ThemeContext';
-import { useAuth } from './auth-context';
+import { useAuth } from '../components/auth-context';
 
 export default function ForgotPasswordScreen() {
   const { resetPassword, loading } = useAuth();
   const { theme } = useThemeContext();
   const isDarkTheme = theme === 'dark';
-  
+  const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
-  
-  const router = useRouter();
 
-  // Animation values
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -68,7 +69,6 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
@@ -78,14 +78,12 @@ export default function ForgotPasswordScreen() {
     setSubmitting(true);
     const success = await resetPassword(email);
     setSubmitting(false);
-    
+
     if (success) {
       Alert.alert(
-        'Reset Link Sent', 
+        'Reset Link Sent',
         'If an account with this email exists, you will receive a password reset link shortly.',
-        [
-          { text: 'OK', onPress: () => router.push('/login') }
-        ]
+        [{ text: 'OK', onPress: () => router.push('/login') }]
       );
     } else {
       Alert.alert('Error', 'Unable to send reset link. Please try again.');
@@ -94,129 +92,121 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
-        <LinearGradient
-          colors={isDarkTheme ? ['#0A0A0A', '#1A1A1A'] : ['#FFFFFF', '#F8F9FA']}
-          style={styles.gradient}
-        >
-          <Animated.View 
-            style={[
-              styles.content,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              }
-            ]}
-          >
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={() => router.back()}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+            <LinearGradient
+              colors={isDarkTheme ? ['#0A0A0A', '#1A1A1A'] : ['#FFFFFF', '#F8F9FA']}
+              style={styles.gradient}
+            >
+              <Animated.View
+                style={[
+                  styles.content,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
               >
-                <Ionicons name="arrow-back" size={24} color={themeColors.accent} />
-              </TouchableOpacity>
-              
-              <View style={[styles.logoContainer, { backgroundColor: themeColors.cardBackground }]}>
-                <Ionicons name="lock-open" size={40} color={themeColors.accent} />
-              </View>
-              <Text style={[styles.title, { color: themeColors.textPrimary }]}>
-                Reset Password
-              </Text>
-              <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-                Enter your email to receive a password reset link
-              </Text>
-            </View>
+                <View style={styles.header}>
+                  <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color={themeColors.accent} />
+                  </TouchableOpacity>
 
-            {/* Form */}
-            <View style={styles.form}>
-              {/* Email Input */}
-              <View style={styles.inputContainer}>
-                <Ionicons 
-                  name="mail-outline" 
-                  size={20} 
-                  color={emailFocused ? themeColors.accent : themeColors.textSecondary} 
-                />
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: themeColors.inputBackground,
-                      borderColor: emailFocused ? themeColors.inputBorderFocused : themeColors.inputBorder,
-                      color: themeColors.textPrimary,
-                    }
-                  ]}
-                  placeholder="Enter your email address"
-                  placeholderTextColor={themeColors.textSecondary}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                />
-              </View>
+                  <View style={[styles.logoContainer, { backgroundColor: themeColors.cardBackground }]}>
+                    <Ionicons name="lock-open" size={40} color={themeColors.accent} />
+                  </View>
 
-              {/* Info Text */}
-              <View style={styles.infoContainer}>
-                <Ionicons name="information-circle-outline" size={20} color={themeColors.textSecondary} />
-                <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
-                  We'll send you a link to reset your password. Make sure to check your spam folder.
-                </Text>
-              </View>
+                  <Text style={[styles.title, { color: themeColors.textPrimary }]}>Reset Password</Text>
+                  <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+                    Enter your email to receive a password reset link
+                  </Text>
+                </View>
 
-              {/* Reset Button */}
-              <TouchableOpacity 
-                style={[styles.resetButton, { opacity: submitting ? 0.7 : 1 }]}
-                onPress={handleResetPassword}
-                disabled={submitting || loading}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={themeColors.accentGradient}
-                  style={styles.gradientButton}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.resetButtonText}>Send Reset Link</Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+                <View style={styles.form}>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      {
+                        backgroundColor: themeColors.inputBackground,
+                        borderColor: emailFocused
+                          ? themeColors.inputBorderFocused
+                          : themeColors.inputBorder,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color={emailFocused ? themeColors.accent : themeColors.textSecondary}
+                      style={{ marginRight: 8 }}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: themeColors.textPrimary }]}
+                      placeholder="Enter your email address"
+                      placeholderTextColor={themeColors.textSecondary}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      value={email}
+                      onChangeText={setEmail}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                    />
+                  </View>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>
-                Remember your password?{' '}
-                <Text 
-                  style={[styles.footerLink, { color: themeColors.accent }]}
-                  onPress={() => router.push('/login')}
-                >
-                  Sign in
-                </Text>
-              </Text>
-            </View>
-          </Animated.View>
-        </LinearGradient>
+                  <View style={styles.infoContainer}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={20}
+                      color={themeColors.textSecondary}
+                    />
+                    <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+                      We’ll send you a link to reset your password. Make sure to check your spam folder.
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.resetButton, { opacity: submitting ? 0.7 : 1 }]}
+                    onPress={handleResetPassword}
+                    disabled={submitting || loading}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient colors={themeColors.accentGradient} style={styles.gradientButton}>
+                      {submitting ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.resetButtonText}>Send Reset Link</Text>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.footer}>
+                  <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>
+                    Remember your password?{' '}
+                    <Text
+                      style={[styles.footerLink, { color: themeColors.accent }]}
+                      onPress={() => router.push('/login')}
+                    >
+                      Sign in
+                    </Text>
+                  </Text>
+                </View>
+              </Animated.View>
+            </LinearGradient>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  gradient: { flex: 1 },
   content: {
     flex: 1,
     paddingHorizontal: 24,
@@ -268,22 +258,15 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 16,
-    borderRadius: 12,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 24,
   },
   input: {
     flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
     fontSize: 16,
-    borderRadius: 12,
   },
   infoContainer: {
     flexDirection: 'row',
@@ -299,10 +282,6 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     borderRadius: 12,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
     elevation: 8,
   },
   gradientButton: {
@@ -325,4 +304,4 @@ const styles = StyleSheet.create({
   footerLink: {
     fontWeight: 'bold',
   },
-}); 
+});

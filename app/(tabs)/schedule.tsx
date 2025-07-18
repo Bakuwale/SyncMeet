@@ -1,6 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Platform,
@@ -12,8 +12,10 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useMeetings } from '../../components/MeetingContext';
 import { useThemeContext } from '../../components/ThemeContext';
+import { getScheduledNotifications, loadNotificationSettings, scheduleMeetingReminder } from '../../utils/notifications';
 
 export default function ScheduleMeetingScreen() {
   const { theme } = useThemeContext();
@@ -26,6 +28,28 @@ export default function ScheduleMeetingScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [duration, setDuration] = useState('30');
   const [description, setDescription] = useState('');
+  const [nextReminder, setNextReminder] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const fetchNextReminder = async () => {
+      const scheduled = await getScheduledNotifications();
+      const now = new Date();
+      const future = scheduled
+        .map(n => {
+          if (n.trigger && typeof n.trigger === 'object' && 'date' in n.trigger) {
+            return new Date(n.trigger.date);
+          }
+          if (n.trigger && typeof n.trigger === 'number') {
+            return new Date(Date.now() + n.trigger * 1000);
+          }
+          return null;
+        })
+        .filter((d): d is Date => !!d && d > now)
+        .sort((a, b) => a.getTime() - b.getTime());
+      setNextReminder(future.length > 0 ? future[0] : null);
+    };
+    fetchNextReminder();
+  }, []);
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -48,7 +72,7 @@ export default function ScheduleMeetingScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !duration) {
       Alert.alert('Error', 'Please fill in the meeting title and duration.');
       return;
@@ -62,8 +86,32 @@ export default function ScheduleMeetingScreen() {
       description,
     };
 
-    addMeeting(newMeeting);
-    Alert.alert('Meeting Scheduled', 'Your meeting has been added to the list.');
+    await addMeeting(newMeeting);
+    
+    // Schedule notification reminder
+    try {
+      const notificationSettings = await loadNotificationSettings();
+      if (notificationSettings.enabled) {
+        const notificationId = await scheduleMeetingReminder(
+          newMeeting.title + '_' + newMeeting.date.getTime(), // Simple ID generation
+          newMeeting.title,
+          newMeeting.date,
+          notificationSettings
+        );
+        
+        if (notificationId) {
+          console.log('Meeting reminder scheduled successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error scheduling meeting reminder:', error);
+    }
+    
+    Alert.alert(
+      'Meeting Scheduled', 
+      'Your meeting has been added to the list and a reminder will be sent 5 minutes before the meeting starts.',
+      [{ text: 'OK' }]
+    );
 
     // Reset inputs
     setTitle('');
@@ -93,6 +141,15 @@ export default function ScheduleMeetingScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]} 
         showsVerticalScrollIndicator={false}
       >
+        {/* Next Reminder Display */}
+        {nextReminder && (
+          <View style={{ marginBottom: 16, padding: 16, backgroundColor: themeColors.cardBackground, borderRadius: 12, alignItems: 'center' }}>
+            <Text style={{ color: themeColors.textPrimary, fontWeight: 'bold', fontSize: 16 }}>Next Reminder</Text>
+            <Text style={{ color: themeColors.textSecondary, marginTop: 4 }}>
+              You’ll be reminded on {nextReminder.toLocaleDateString()} at {nextReminder.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+        )}
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.heading, { color: themeColors.textPrimary }]}>Schedule a Meeting</Text>
@@ -195,6 +252,19 @@ export default function ScheduleMeetingScreen() {
           </View>
         </View>
 
+        {/* Notification Info */}
+        <View style={[styles.notificationInfo, { backgroundColor: themeColors.cardBackground }]}>
+          <Ionicons name="notifications-outline" size={20} color={themeColors.accent} style={styles.icon} />
+          <View style={styles.notificationText}>
+            <Text style={[styles.notificationTitle, { color: themeColors.textPrimary }]}>
+              Meeting Reminder
+            </Text>
+            <Text style={[styles.notificationDescription, { color: themeColors.textSecondary }]}>
+              You'll receive a notification 5 minutes before this meeting starts
+            </Text>
+          </View>
+        </View>
+
         {/* Submit Button */}
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: themeColors.buttonBackground }]}
@@ -204,6 +274,7 @@ export default function ScheduleMeetingScreen() {
           <Text style={[styles.submitText, { color: themeColors.buttonText }]}>Schedule Meeting</Text>
         </TouchableOpacity>
       </ScrollView>
+      <Toast />
     </SafeAreaView>
   );
 }
@@ -272,5 +343,30 @@ const styles = StyleSheet.create({
   submitText: { 
     fontSize: 18, 
     fontWeight: '700',
+  },
+  notificationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  notificationText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  notificationDescription: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

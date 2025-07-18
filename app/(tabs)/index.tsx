@@ -65,6 +65,17 @@ export default function HomeScreen() {
     inputBackground: isDarkTheme ? '#292929' : '#f8f9fa',
     inputText: isDarkTheme ? '#ffffff' : '#000000',
     placeholderText: isDarkTheme ? '#888888' : '#999999',
+    popupBackground: isDarkTheme ? '#232323' : '#fff',
+    popupCard: isDarkTheme ? '#292929' : '#fff',
+    popupText: isDarkTheme ? '#fff' : '#222',
+    popupSecondary: isDarkTheme ? '#bbb' : '#666',
+    popupButton: isDarkTheme ? '#393939' : '#e0e0e0',
+    popupButtonText: isDarkTheme ? '#fff' : '#007AFF',
+    popupCancel: isDarkTheme ? '#393939' : '#e0e0e0',
+    popupCancelText: isDarkTheme ? '#fff' : '#000',
+    popupOk: isDarkTheme ? '#1877f2' : '#1877f2',
+    popupOkText: '#fff',
+    popupShadow: isDarkTheme ? '#000' : '#bbb',
   };
 
   return (
@@ -353,9 +364,13 @@ export default function HomeScreen() {
             style={styles.shareModalOverlay}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
           >
-            <View style={styles.shareModalCardSmall}>
-              <Text style={styles.shareModalHeaderInCard}>Share screen</Text>
-              <Text style={styles.shareModalMessage} accessibilityRole="text">
+            <View style={[styles.shareModalCardSmall, {
+              backgroundColor: themeColors.popupCard,
+              shadowColor: themeColors.popupShadow,
+            }]}
+            >
+              <Text style={[styles.shareModalHeaderInCard, { color: themeColors.popupText }]}>Share screen</Text>
+              <Text style={[styles.shareModalMessage, { color: themeColors.popupSecondary }]} accessibilityRole="text">
                 Enter sharing key or meeting ID to share to a Zoom Room.
               </Text>
               <TextInput
@@ -373,7 +388,7 @@ export default function HomeScreen() {
               />
               <View style={styles.shareModalButtonRow}>
                 <TouchableOpacity
-                  style={styles.shareModalCancelButton}
+                  style={[styles.shareModalCancelButton, { backgroundColor: themeColors.popupCancel }]}
                   onPress={() => {
                     setShareModalVisible(false);
                     setShareMeetingId('');
@@ -381,10 +396,10 @@ export default function HomeScreen() {
                   accessibilityLabel="Cancel"
                   accessible
                 >
-                  <Text style={styles.shareModalCancelButtonText}>Cancel</Text>
+                  <Text style={[styles.shareModalCancelButtonText, { color: themeColors.popupCancelText }]}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.shareModalOkButton, !shareMeetingId && { opacity: 0.5 }]}
+                  style={[styles.shareModalOkButton, { backgroundColor: themeColors.popupOk }, !shareMeetingId && { opacity: 0.5 }]}
                   disabled={!shareMeetingId}
                   accessibilityLabel="OK"
                   accessible
@@ -394,7 +409,7 @@ export default function HomeScreen() {
                     alert('Screen sharing started (simulated)!');
                   }}
                 >
-                  <Text style={styles.shareModalOkButtonText}>OK</Text>
+                  <Text style={[styles.shareModalOkButtonText, { color: themeColors.popupOkText }]}>OK</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -412,18 +427,18 @@ export default function HomeScreen() {
         <TouchableWithoutFeedback onPress={() => setInfoModalVisible(false)}>
           <View style={styles.infoModalOverlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.infoModalSheet}>
-                <Text style={styles.infoModalLabel}>Personal meeting ID</Text>
-                <Text style={styles.infoModalId}>{PERSONAL_MEETING_ID}</Text>
+              <View style={[styles.infoModalSheet, { backgroundColor: themeColors.popupCard, shadowColor: themeColors.popupShadow }] }>
+                <Text style={[styles.infoModalLabel, { color: themeColors.popupSecondary }]}>Personal meeting ID</Text>
+                <Text style={[styles.infoModalId, { color: themeColors.popupText }]}>{PERSONAL_MEETING_ID}</Text>
                 <View style={{flex: 1, width: '100%', justifyContent: 'flex-start'}}>
-                  <View style={styles.infoModalActions}>
+                  <View style={[styles.infoModalActions, { backgroundColor: themeColors.cardBackground }] }>
                     <Pressable style={styles.infoModalActionRow}>
-                      <Text style={styles.infoModalActionText}>Start meeting</Text>
-                      <MaterialIcons name="calendar-today" size={22} color="#fff" />
+                      <Text style={[styles.infoModalActionText, { color: themeColors.popupText }]}>Start meeting</Text>
+                      <MaterialIcons name="calendar-today" size={22} color={themeColors.popupText} />
                     </Pressable>
                     <Pressable style={styles.infoModalActionRow}>
-                      <Text style={styles.infoModalActionText}>Send invitation</Text>
-                      <MaterialIcons name="share" size={22} color="#fff" />
+                      <Text style={[styles.infoModalActionText, { color: themeColors.popupText }]}>Send invitation</Text>
+                      <MaterialIcons name="share" size={22} color={themeColors.popupText} />
                     </Pressable>
                     <Pressable style={styles.infoModalActionRow}
                       onPress={() => {
@@ -431,13 +446,13 @@ export default function HomeScreen() {
                         setTimeout(() => setEditMeetingModalVisible(true), 300);
                       }}
                     >
-                      <Text style={styles.infoModalActionText}>Edit meeting</Text>
-                      <FontAwesome name="pencil" size={20} color="#fff" />
+                      <Text style={[styles.infoModalActionText, { color: themeColors.popupText }]}>Edit meeting</Text>
+                      <FontAwesome name="pencil" size={20} color={themeColors.popupText} />
                     </Pressable>
                   </View>
                 </View>
                 <Pressable style={styles.infoModalCancel} onPress={() => setInfoModalVisible(false)}>
-                  <Text style={styles.infoModalCancelText}>Cancel</Text>
+                  <Text style={[styles.infoModalCancelText, { color: themeColors.popupText }]}>Cancel</Text>
                 </Pressable>
               </View>
             </TouchableWithoutFeedback>

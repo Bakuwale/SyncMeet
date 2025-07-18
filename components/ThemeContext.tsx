@@ -34,4 +34,35 @@ export const useThemeContext = () => {
     throw new Error('useThemeContext must be used within a ThemeProvider');
   }
   return context;
+};
+
+export const themeColors = {
+  light: {
+    background: '#FFFFFF',
+    cardBackground: '#F8F9FA',
+    textPrimary: '#1A1A1A',
+    textSecondary: '#666666',
+    textTertiary: '#999999',
+    borderColor: '#E0E0E0',
+    accent: '#007AFF',
+    success: '#34C759',
+    error: '#FF3B30',
+    warning: '#FF9500',
+    toastBackground: '#F8F9FA',
+    toastText: '#1A1A1A',
+  },
+  dark: {
+    background: '#121212',
+    cardBackground: '#1E1E1E',
+    textPrimary: '#FFFFFF',
+    textSecondary: '#B0B0B0',
+    textTertiary: '#888888',
+    borderColor: '#333333',
+    accent: '#007AFF',
+    success: '#34C759',
+    error: '#FF3B30',
+    warning: '#FF9500',
+    toastBackground: '#232323',
+    toastText: '#FFFFFF',
+  },
 }; 
