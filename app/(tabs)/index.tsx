@@ -2,25 +2,29 @@ import { FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  Alert,
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { useThemeContext } from '../../components/ThemeContext';
 
 const PERSONAL_MEETING_ID = '891 774 6184';
+const generateMeetingId = () => {
+  return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+};
+
 
 export default function HomeScreen() {
   const { theme } = useThemeContext();
@@ -165,9 +169,21 @@ export default function HomeScreen() {
           </View>
 
           {/* Start Meeting Button */}
-          <TouchableOpacity style={styles.zoomModalStartButton} onPress={() => setMeetModalVisible(false)}>
-            <Text style={styles.zoomModalStartButtonText}>Start a meeting</Text>
-          </TouchableOpacity>
+<TouchableOpacity
+  style={styles.zoomModalStartButton}
+  onPress={() => {
+    setMeetModalVisible(false);
+    router.push({
+      pathname: '/meeting',
+      params: {
+        meetingId: usePMI ? PERSONAL_MEETING_ID : generateMeetingId(),
+        userName: 'Host',
+      },
+    });
+  }}
+>
+  <Text style={styles.zoomModalStartButtonText}>Start a meeting</Text>
+</TouchableOpacity>
         </View>
       </Modal>
 

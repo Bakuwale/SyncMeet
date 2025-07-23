@@ -1,15 +1,15 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Dimensions,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useMeetings } from '../../components/MeetingContext';
 import { useThemeContext } from '../../components/ThemeContext';
@@ -40,7 +40,7 @@ function isUpcoming(meeting: any) {
 }
 
 export default function MeetingsTab() {
-  const { meetings } = useMeetings();
+const { meetings, addMeeting } = useMeetings();
   const { theme } = useThemeContext();
   const isDarkTheme = theme === 'dark';
   const [search, setSearch] = useState('');
@@ -52,6 +52,21 @@ export default function MeetingsTab() {
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+
+  const handleStartMeeting = async () => {
+  const now = new Date();
+  const meeting = {
+    title: 'Instant Meeting',
+    description: 'Quick meeting started manually',
+    date: now,
+    duration: 30,
+    participants: 1,
+  };
+
+  await addMeeting(meeting);
+  setShowVideoCall(true); // Show video modal immediately
+};
+
 
   const themeColors = {
     background: isDarkTheme ? '#1c1c1c' : '#ffffff',
@@ -112,6 +127,7 @@ export default function MeetingsTab() {
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <View style={styles.meetingTabContentWrapper}>
+        
         {/* Search Bar with marginTop */}
         <View style={[styles.searchBar, { backgroundColor: themeColors.searchBackground }]}>
           <Ionicons name="search" size={20} color={themeColors.textSecondary} />
@@ -144,6 +160,20 @@ export default function MeetingsTab() {
             </TouchableOpacity>
           ))}
         </View>
+
+        <TouchableOpacity
+  style={{
+    backgroundColor: themeColors.accent,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  }}
+  onPress={handleStartMeeting}
+>
+  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Start a Meeting</Text>
+</TouchableOpacity>
+
 
         {/* Meetings List */}
         <FlatList
