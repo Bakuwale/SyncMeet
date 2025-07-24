@@ -3,20 +3,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import { useThemeContext } from '../components/ThemeContext';
 import { useAuth } from '../components/auth-context';
@@ -30,6 +30,7 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -151,11 +152,17 @@ export default function ForgotPasswordScreen() {
                       autoCapitalize="none"
                       keyboardType="email-address"
                       value={email}
-                      onChangeText={setEmail}
+                      onChangeText={text => { setEmail(text); setEmailTouched(true); }}
                       onFocus={() => setEmailFocused(true)}
-                      onBlur={() => setEmailFocused(false)}
+                      onBlur={() => { setEmailFocused(false); setEmailTouched(true); }}
                     />
                   </View>
+                {/* Email format helper below input */}
+                {emailTouched && email.length > 0 && !/^[^@]+@[^@]+\.[^@]+$/.test(email) && (
+                  <Text style={{ color: 'orange', fontSize: 12, marginLeft: 12, marginBottom: 4 }}>
+                    Please enter a valid email address (e.g. user@example.com)
+                  </Text>
+                )}
 
                   <View style={styles.infoContainer}>
                     <Ionicons

@@ -1,14 +1,18 @@
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { useAuth } from '../components/auth-context';
 
 export default function Index() {
   const { user } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    // Always redirect to login screen on app start
-    router.replace('/login');
-  }, []);
+    if (user) {
+      router.replace('/(tabs)');
+    } else {
+      router.replace('/login');
+    }
+  }, [user]);
 
-  return null; // return nothing since we’re redirecting
+  return null;
 }

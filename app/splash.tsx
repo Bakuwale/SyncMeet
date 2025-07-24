@@ -1,10 +1,11 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated,
-  Dimensions,
-  StyleSheet,
-  View
+    Animated,
+    Dimensions,
+    StyleSheet,
+    View
 } from 'react-native';
 import { useAuth } from '../components/auth-context';
 
@@ -12,13 +13,14 @@ const SplashScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const { user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    let isMounted = true; // Prevent navigating if component is unmounted
+    let isMounted = true;
 
     const startAnimations = () => {
       Animated.parallel([
@@ -27,9 +29,10 @@ const SplashScreen = () => {
           duration: 1000,
           useNativeDriver: true,
         }),
-        Animated.timing(scaleAnim, {
+        Animated.spring(scaleAnim, {
           toValue: 1,
-          duration: 1000,
+          friction: 5,
+          tension: 80,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
@@ -37,14 +40,20 @@ const SplashScreen = () => {
           duration: 1000,
           useNativeDriver: true,
         }),
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
       ]).start(() => {
         if (isMounted) {
-          // ✅ Navigate after animation ends
-          if (user) {
-            router.replace('/(tabs)/home');
-          } else {
-            router.replace('/auth/login');
-          }
+          setTimeout(() => {
+            if (user) {
+              router.replace('/(tabs)');
+            } else {
+              router.replace('/login');
+            }
+          }, 800);
         }
       });
     };
@@ -53,13 +62,13 @@ const SplashScreen = () => {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.1,
-            duration: 1500,
+            toValue: 1.08,
+            duration: 1400,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 1500,
+            duration: 1400,
             useNativeDriver: true,
           }),
         ])
@@ -75,14 +84,35 @@ const SplashScreen = () => {
   }, [user]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      <LinearGradient
+        colors={['#0f2027', '#2c5364', '#000000']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
+      />
+      <Animated.View
+        style={[
+          styles.logoGlow,
+          {
+            opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+            transform: [
+              { scale: scaleAnim.interpolate({ inputRange: [0.8, 1], outputRange: [1.2, 1.5] }) },
+            ],
+          },
+        ]}
+      />
       <Animated.Image
         source={require('../assets/images/Logo.png')}
         style={[
           styles.logo,
           {
             opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
+            transform: [
+              { scale: scaleAnim },
+              { scale: pulseAnim },
+            ],
+            shadowOpacity: glowAnim,
           },
         ]}
       />
@@ -90,22 +120,27 @@ const SplashScreen = () => {
         style={[
           styles.text,
           {
-            transform: [{ translateY: slideAnim }, { scale: pulseAnim }],
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: pulseAnim },
+            ],
+            textShadowColor: '#00eaff',
+            textShadowOffset: { width: 0, height: 0 },
+            textShadowRadius: 16,
           },
         ]}
       >
-        Welcome to ClipForge
+        Welcome to SyncMeet
       </Animated.Text>
     </View>
   );
 };
 
-export default SplashScreen;
-
 const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
     backgroundColor: '#000',
     alignItems: 'center',
@@ -114,12 +149,41 @@ const styles = StyleSheet.create({
   logo: {
     width: width * 0.5,
     height: width * 0.5,
-    marginBottom: 20,
+    marginBottom: 24,
     resizeMode: 'contain',
+    shadowColor: '#00eaff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 32,
+    elevation: 24,
+  },
+  logoGlow: {
+    position: 'absolute',
+    top: '32%',
+    left: '25%',
+    width: width * 0.5,
+    height: width * 0.5,
+    borderRadius: width * 0.25,
+    backgroundColor: '#00eaff',
+    opacity: 0.5,
+    shadowColor: '#00eaff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 60,
+    elevation: 40,
+    zIndex: 0,
   },
   text: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#fff',
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    marginTop: 8,
+    textShadowColor: '#00eaff',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
   },
 });
+
+export default SplashScreen;

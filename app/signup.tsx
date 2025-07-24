@@ -3,14 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView, Platform, SafeAreaView, ScrollView,
-    StyleSheet,
-    Text, TextInput, TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator, Animated,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView, Platform, SafeAreaView, ScrollView,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import PhotoUpload from '../components/PhotoUpload';
 import { useAuth } from '../components/auth-context';
@@ -26,7 +26,9 @@ export default function SignupScreen() {
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [loading, setLoading] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<{ fullName?: string; email?: string; password?: string; confirm?: string }>({});
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
 
   useEffect(() => {
       Animated.timing(fadeAnim, {
@@ -50,7 +52,7 @@ export default function SignupScreen() {
   };
 
   const validate = () => {
-    const errs = {};
+    const errs: { fullName?: string; email?: string; password?: string; confirm?: string } = {};
     if (!fullName) errs.fullName = 'Full Name is required';
     if (!email) errs.email = 'Email is required';
     else if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) errs.email = 'Invalid email';
@@ -125,11 +127,19 @@ export default function SignupScreen() {
                       placeholder="Email address"
                     placeholderTextColor={theme.placeholder}
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={text => { setEmail(text); setEmailTouched(true); }}
                       autoCapitalize="none"
                       keyboardType="email-address"
+                      onBlur={() => setEmailTouched(true)}
                     />
-                  </View>
+                </View>
+                {/* Email format helper and error below input */}
+                {emailTouched && email.length > 0 && !/^[^@]+@[^@]+\.[^@]+$/.test(email) && (
+                  <Text style={{ color: 'orange', fontSize: 12, marginLeft: 12, marginBottom: 4 }}>
+                    Please enter a valid email address (e.g. user@example.com)
+                  </Text>
+                )}
+                {errors.email && <Text style={{ color: 'red', fontSize: 12, marginLeft: 12, marginBottom: 4 }}>{errors.email}</Text>}
                 <View style={styles.inputRow}>
                   <Ionicons name="lock-closed-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
@@ -137,10 +147,18 @@ export default function SignupScreen() {
                       placeholder="Password"
                     placeholderTextColor={theme.placeholder}
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={text => { setPassword(text); setPasswordTouched(true); }}
                       secureTextEntry
+                      onBlur={() => setPasswordTouched(true)}
                     />
-                  </View>
+                </View>
+                {/* Password length helper and error below input */}
+                {passwordTouched && password.length > 0 && password.length < 6 && (
+                  <Text style={{ color: 'orange', fontSize: 12, marginLeft: 12, marginBottom: 4 }}>
+                    Password must be at least 6 characters
+                  </Text>
+                )}
+                {errors.password && <Text style={{ color: 'red', fontSize: 12, marginLeft: 12, marginBottom: 4 }}>{errors.password}</Text>}
                 <View style={styles.inputRow}>
                   <Ionicons name="lock-closed-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput

@@ -2,25 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated,
-    Keyboard,
-    KeyboardAvoidingView, Platform, SafeAreaView, ScrollView,
-    StyleSheet,
-    Text, TextInput, TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator, Animated,
+  Keyboard,
+  KeyboardAvoidingView, Platform, SafeAreaView, ScrollView,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import { useAuth } from '../components/auth-context';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
-  const [fullName, setFullName] = useState('');
+  // Remove fullName state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
   
   useEffect(() => {
       Animated.timing(fadeAnim, {
@@ -48,7 +50,7 @@ export default function LoginScreen() {
   };
 
   const validate = () => {
-    const errs = {};
+    const errs: { email?: string; password?: string } = {};
     if (!email) errs.email = 'Email is required';
     else if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) errs.email = 'Invalid email';
     if (!password) errs.password = 'Password is required';
@@ -90,17 +92,7 @@ export default function LoginScreen() {
                 <Text style={[styles.subtitle, { color: theme.placeholder }]}>Sign in to continue to SyncMeet</Text>
               </View>
                 <View style={styles.form}>
-                <View style={styles.inputRow}>
-                  <Ionicons name="person-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
-                    <TextInput
-                    style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
-                      placeholder="Full Name"
-                    placeholderTextColor={theme.placeholder}
-                    value={fullName}
-                    onChangeText={setFullName}
-                      autoCapitalize="words"
-                    />
-                  </View>
+                {/* Remove Full Name input field */}
                 <View style={styles.inputRow}>
                   <Ionicons name="mail-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
@@ -108,12 +100,19 @@ export default function LoginScreen() {
                       placeholder="Email address"
                     placeholderTextColor={theme.placeholder}
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={text => { setEmail(text); setEmailTouched(true); }}
                       autoCapitalize="none"
                       keyboardType="email-address"
+                      onBlur={() => setEmailTouched(true)}
                     />
-                  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-                  </View>
+                </View>
+                {/* Email format helper and error below input */}
+                {emailTouched && email.length > 0 && !/^[^@]+@[^@]+\.[^@]+$/.test(email) && (
+                  <Text style={{ color: 'orange', fontSize: 12, marginLeft: 12, marginBottom: 4 }}>
+                    Please enter a valid email address (e.g. user@example.com)
+                  </Text>
+                )}
+                {errors?.email && <Text style={styles.errorText}>{errors.email}</Text>}
                 <View style={styles.inputRow}>
                   <Ionicons name="lock-closed-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
@@ -121,11 +120,18 @@ export default function LoginScreen() {
                       placeholder="Password"
                     placeholderTextColor={theme.placeholder}
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={text => { setPassword(text); setPasswordTouched(true); }}
                       secureTextEntry
+                      onBlur={() => setPasswordTouched(true)}
                     />
-                  {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-                  </View>
+                </View>
+                {/* Password length helper and error below input */}
+                {passwordTouched && password.length > 0 && password.length < 6 && (
+                  <Text style={{ color: 'orange', fontSize: 12, marginLeft: 12, marginBottom: 4 }}>
+                    Password must be at least 6 characters
+                  </Text>
+                )}
+                {errors?.password && <Text style={styles.errorText}>{errors.password}</Text>}
                 <TouchableOpacity onPress={() => router.push('/forgot-password')} style={styles.forgotBtn}>
                   <Text style={[styles.forgotText, { color: theme.accent }]}>Forgot password?</Text>
                   </TouchableOpacity>

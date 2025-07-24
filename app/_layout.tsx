@@ -5,9 +5,11 @@
 // Toast must be rendered outside the navigation tree to avoid expo-router layout warnings.
 // For more info: https://docs.expo.dev/develop/development-builds/introduction/
 // =============================
+import { ClerkProvider } from '@clerk/clerk-expo';
+import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
@@ -17,20 +19,23 @@ import { ScheduleProvider } from '../components/ScheduleContext';
 import { ThemeProvider } from '../components/ThemeContext';
 import { initializeNotifications } from '../utils/notifications';
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+const clerkPublishableKey = Constants.expoConfig?.extra?.clerkPublishableKey || process.env.CLERK_PUBLISHABLE_KEY;
+
+type ErrorBoundaryProps = { children: React.ReactNode };
+type ErrorBoundaryState = { hasError: boolean };
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: unknown) {
     return { hasError: true };
   }
-  componentDidCatch(error, errorInfo) {
-    console.log('Caught error:', error, errorInfo);
-  }
+  componentDidCatch(error: unknown, errorInfo: unknown) {}
   render() {
     if (this.state.hasError) {
-      return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}><Text>Something went wrong.</Text></View>;
+      return null;
     }
     return this.props.children;
   }
@@ -51,24 +56,27 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
-        {/* Toast must be outside the navigation tree to avoid expo-router layout warning */}
-        <Toast />
-        <AuthAndThemeProviders>
-          <MeetingProvider>
-            <ScheduleProvider>
-              <RootStackWithAuth />
-            </ScheduleProvider>
-          </MeetingProvider>
-        </AuthAndThemeProviders>
-      </ErrorBoundary>
-    </GestureHandlerRootView>
+    <ClerkProvider publishableKey={clerkPublishableKey}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ErrorBoundary>
+          {/* Toast must be outside the navigation tree to avoid expo-router layout warning */}
+          <Toast />
+          <AuthAndThemeProviders>
+            <MeetingProvider>
+              <ScheduleProvider>
+                <RootStackWithAuth />
+              </ScheduleProvider>
+            </MeetingProvider>
+          </AuthAndThemeProviders>
+        </ErrorBoundary>
+      </GestureHandlerRootView>
+    </ClerkProvider>
   );
 }
 
 function RootStackWithAuth() {
   const { user, loading } = useAuth();
+  console.log('RootStackWithAuth', { user, loading });
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>

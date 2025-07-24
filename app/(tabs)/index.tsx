@@ -51,10 +51,11 @@ export default function HomeScreen() {
   const [editOnlyAuthUsers, setEditOnlyAuthUsers] = useState(false);
   const [editHostVideo, setEditHostVideo] = useState(false);
   const [editParticipantVideo, setEditParticipantVideo] = useState(false);
+  const [creatingRoom, setCreatingRoom] = useState(false);
 
   const durationOptions = [15, 30, 45, 60, 90, 120];
   const timeZoneOptions = ['GMT+0', 'GMT+1', 'GMT+2', 'GMT-1', 'GMT-5', 'GMT+8'];
-  const repeatOptions = ['None', 'Daily', 'Weekly', 'Monthly'];
+  const repeatOptions = ['None', 'Weekly', 'Monthly'];
   const calendarOptions = ['Zoom', 'Google', 'Outlook', 'Other'];
 
   const router = useRouter();
@@ -137,14 +138,14 @@ export default function HomeScreen() {
             >
               <Text style={styles.zoomModalCancel}>Cancel</Text>
             </Pressable>
-            <Text style={[styles.zoomModalHeaderTitle, { color: themeColors.textPrimary }]}>Start a meeting</Text>
+            <Text style={[styles.zoomModalHeaderTitle, { color: themeColors.textPrimary }]}>New Meeting</Text>
             <View style={{ width: 60 }} /> {/* Spacer for symmetry */}
           </View>
 
-          {/* Options */}
+          {/* Toggles */}
           <View style={[styles.zoomModalOptionsContainer, { backgroundColor: themeColors.background }]}>
             <View style={styles.zoomModalOptionRow}>
-              <Text style={[styles.zoomModalOptionLabel, { color: themeColors.textPrimary }]}>Video on</Text>
+              <Text style={[styles.zoomModalOptionLabel, { color: themeColors.textPrimary }]}>Video On</Text>
               <Switch
                 value={videoOn}
                 onValueChange={setVideoOn}
@@ -154,7 +155,7 @@ export default function HomeScreen() {
             </View>
             <View style={[styles.zoomModalDivider, { backgroundColor: themeColors.borderColor }]} />
             <View style={styles.zoomModalOptionRow}>
-              <Text style={[styles.zoomModalOptionLabel, { color: themeColors.textPrimary }]}>Use personal meeting ID (PMI)</Text>
+              <Text style={[styles.zoomModalOptionLabel, { color: themeColors.textPrimary }]}>Use Personal Meeting ID (PMI)</Text>
               <Switch
                 value={usePMI}
                 onValueChange={setUsePMI}
@@ -163,12 +164,13 @@ export default function HomeScreen() {
               />
             </View>
             {usePMI && (
-              <Text style={[styles.zoomModalPMI, { color: themeColors.textSecondary }]}>{PERSONAL_MEETING_ID}</Text>
+              <Text style={[styles.zoomModalPMI, { color: themeColors.textSecondary }]}>Your Personal Meeting ID: {PERSONAL_MEETING_ID}</Text>
             )}
             <View style={[styles.zoomModalDivider, { backgroundColor: themeColors.borderColor }]} />
           </View>
 
           {/* Start Meeting Button */}
+<<<<<<< HEAD
 <TouchableOpacity
   style={styles.zoomModalStartButton}
   onPress={() => {
@@ -184,6 +186,28 @@ export default function HomeScreen() {
 >
   <Text style={styles.zoomModalStartButtonText}>Start a meeting</Text>
 </TouchableOpacity>
+=======
+          <TouchableOpacity
+            style={styles.zoomModalStartButton}
+            onPress={() => {
+              setMeetModalVisible(false);
+              router.push({
+                pathname: '/video-call',
+                params: {
+                  videoOn: videoOn ? 'true' : 'false',
+                  usePMI: usePMI ? 'true' : 'false',
+                  meetingId: usePMI ? PERSONAL_MEETING_ID : undefined,
+                  isHost: 'true',
+                },
+              });
+            }}
+            disabled={creatingRoom}
+          >
+            <Text style={styles.zoomModalStartButtonText}>
+              {creatingRoom ? 'Starting...' : 'Start a Meeting'}
+            </Text>
+          </TouchableOpacity>
+>>>>>>> f884589 (Frontend)
         </View>
       </Modal>
 
@@ -357,7 +381,16 @@ export default function HomeScreen() {
                   return;
                 }
                 setJoinModalVisible(false);
-                router.push({ pathname: '/meeting', params: { meetingId, userName } });
+                router.push({
+                  pathname: '/video-call',
+                  params: {
+                    meetingId,
+                    userName,
+                    joinAudio: joinAudio ? 'true' : 'false',
+                    turnOffVideo: turnOffVideo ? 'true' : 'false',
+                    isHost: 'false',
+                  },
+                });
               }}
             >
               <Ionicons name="videocam" size={20} color="#fff" />

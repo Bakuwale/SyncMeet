@@ -8,6 +8,9 @@
     "scheme": "SyncMeet",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {
+      "clerkPublishableKey": "${CLERK_PUBLISHABLE_KEY}"
+    },
     "ios": {
       "supportsTablet": true
     },
