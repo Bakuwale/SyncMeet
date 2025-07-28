@@ -11,14 +11,10 @@ import {
     View,
 } from 'react-native'
 import { useThemeContext } from '../../components/ThemeContext'
+import { useContacts } from '../../components/ContactContext';
 
-const dummyContacts = [
-  { id: '1', name: 'John Doe' },
-  { id: '2', name: 'Jane Smith' },
-  { id: '3', name: 'Zoom Bot' },
-  { id: '4', name: 'Michael Techie' },
-  { id: '5', name: 'Comfort Bright' },
-]
+// Remove dummyContacts and replace with a placeholder for real data
+// Replace FlatList data={dummyContacts} with data={contacts} where contacts is fetched or provided
 
 const getAvatarUrl = (name: string) => {
   const seed = name.toLowerCase().replace(/\s+/g, '')
@@ -28,6 +24,7 @@ const getAvatarUrl = (name: string) => {
 export default function ContactsScreen() {
   const { theme } = useThemeContext();
   const isDarkTheme = theme === 'dark';
+  const { contacts, loading, error } = useContacts();
 
   // Theme-aware colors
   const themeColors = {
@@ -44,31 +41,35 @@ export default function ContactsScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: themeColors.textPrimary }]}>Contacts</Text>
-          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>{dummyContacts.length} contacts</Text>
+          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>{contacts.length} contacts</Text>
         </View>
-
-        <FlatList
-          data={dummyContacts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.contactCard, { backgroundColor: themeColors.cardBackground }]} activeOpacity={0.7}>
-              <Image
-                source={{ uri: getAvatarUrl(item.name) }}
-                style={[styles.avatar, { borderColor: themeColors.accent }]}
-              />
-              <View style={styles.contactInfo}>
-                <Text style={[styles.contactName, { color: themeColors.textPrimary }]}>{item.name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: themeColors.accent }]}>
-                  <Text style={styles.statusText}>Available</Text>
+        {loading ? (
+          <Text style={{ color: themeColors.textSecondary, textAlign: 'center', marginTop: 40 }}>Loading contacts...</Text>
+        ) : error ? (
+          <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>{error}</Text>
+        ) : (
+          <FlatList
+            data={contacts}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={[styles.contactCard, { backgroundColor: themeColors.cardBackground }]} activeOpacity={0.7}>
+                <Image
+                  source={{ uri: getAvatarUrl(item.name) }}
+                  style={[styles.avatar, { borderColor: themeColors.accent }]}
+                />
+                <View style={styles.contactInfo}>
+                  <Text style={[styles.contactName, { color: themeColors.textPrimary }]}>{item.name}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: themeColors.accent }]}>
+                    <Text style={styles.statusText}>Available</Text>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          )}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
-        />
-
+              </TouchableOpacity>
+            )}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContainer}
+          />
+        )}
         <TouchableOpacity style={[styles.addContactButton, { backgroundColor: themeColors.accent }]} activeOpacity={0.7}>
           <Text style={styles.addContactText}>+</Text>
         </TouchableOpacity>

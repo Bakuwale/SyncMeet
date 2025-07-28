@@ -1,32 +1,15 @@
 import { StyleSheet, Text, View, Image } from 'react-native'
 import React from 'react'
 import AntDesign from 'react-native-vector-icons/AntDesign'
-import { contactsMenuButtons } from '../constants/temData'
+// Remove import { contactsMenuButtons } from '../constants/temData'
 
 export default function ContactsMenu() {
 	return (
 		<View style={styles.container}>
-			{contactsMenuButtons.map(({ name, title, type, photoUrl, job }, index) =>
-				type === 'Started' ? (
-					<View style={styles.row} key={index}>
-						<View style={styles.starIcon}>
-							<AntDesign name="star" size={26} color="#efefef" />
-						</View>
-						<View>
-							<Text style={styles.text}>{title}</Text>
-						</View>
-					</View>
-				) : (
-					<View style={styles.row}>
-						<Image source={photoUrl} style={styles.image} />
-
-						<View>
-							<Text style={styles.text}>{name}</Text>
-							<Text style={styles.jobTitle}>{job}</Text>
-						</View>
-					</View>
-				),
-			)}
+			{/* Replace contactsMenuButtons.map with a placeholder for real data */}
+			{/* This section is currently empty as the data source is not provided */}
+			{/* For demonstration, we'll show a placeholder message */}
+			<Text style={styles.placeholderText}>Contacts data is loading or not available.</Text>
 		</View>
 	)
 }
@@ -73,5 +56,11 @@ const styles = StyleSheet.create({
 		width: 55,
 		height: 55,
 		cursor: 'pointer',
+	},
+	placeholderText: {
+		fontSize: 16,
+		color: '#888',
+		textAlign: 'center',
+		paddingVertical: 20,
 	},
 })

@@ -1,5 +1,8 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+"use client"
+
+import { Ionicons, MaterialIcons } from "@expo/vector-icons"
+import { useState, useEffect } from "react"
+import axios from "axios"
 import {
   Dimensions,
   FlatList,
@@ -9,126 +12,287 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
-} from 'react-native';
-import { useMeetings } from '../../components/MeetingContext';
-import { useThemeContext } from '../../components/ThemeContext';
+  View,
+  Alert,
+} from "react-native"
+import { useMeetings } from "../../components/MeetingContext"
+import { useThemeContext } from "../../components/ThemeContext"
 
-const FILTERS = ['All', 'Upcoming', 'Past'];
-const { width: screenWidth } = Dimensions.get('window');
+const FILTERS = ["All", "Upcoming", "Past"]
+const { width: screenWidth } = Dimensions.get("window")
+const BASE_URL = "https://syncmeet-back.onrender.com"
 
-// Mock participants for video call
-const mockParticipants = [
-  { id: '1', name: 'You', isHost: true, isMuted: false, isVideoOn: true, isSpeaking: false },
-  { id: '2', name: 'John Doe', isHost: false, isMuted: true, isVideoOn: true, isSpeaking: true },
-  { id: '3', name: 'Jane Smith', isHost: false, isMuted: false, isVideoOn: false, isSpeaking: false },
-  { id: '4', name: 'Mike Johnson', isHost: false, isMuted: false, isVideoOn: true, isSpeaking: false },
-  { id: '5', name: 'Sarah Wilson', isHost: false, isMuted: true, isVideoOn: true, isSpeaking: false },
-  { id: '6', name: 'David Brown', isHost: false, isMuted: false, isVideoOn: false, isSpeaking: false },
-];
+// ✅ Updated API functions to match your backend endpoints
+const apiService = {
+  // Get user's meetings
+  getMyMeetings: async (token) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/api/meetings/my`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error fetching meetings:", error.response?.data || error.message)
+      throw error
+    }
+  },
 
-// Mock chat messages
-const mockChatMessages = [
-  { id: '1', sender: 'John Doe', message: 'Can everyone hear me?', timestamp: '2:30 PM' },
-  { id: '2', sender: 'You', message: 'Yes, I can hear you clearly', timestamp: '2:31 PM' },
-  { id: '3', sender: 'Jane Smith', message: 'I\'m having some audio issues', timestamp: '2:32 PM' },
-  { id: '4', sender: 'Mike Johnson', message: 'Try checking your microphone settings', timestamp: '2:33 PM' },
-];
+  // Schedule a new meeting
+  scheduleMeeting: async (meetingData, token) => {
+    try {
+      const response = await axios.post(`${BASE_URL}/api/meetings/schedule`, meetingData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error scheduling meeting:", error.response?.data || error.message)
+      throw error
+    }
+  },
 
-function isUpcoming(meeting: any) {
-  return new Date(meeting.date) > new Date();
+  // Join meeting by code with email
+  joinMeetingByCode: async (meetingCode, email) => {
+    try {
+      const response = await axios.post(`${BASE_URL}/api/meetings/join/${meetingCode}`, {
+        email: email,
+      })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error joining meeting:", error.response?.data || error.message)
+      throw error
+    }
+  },
+
+  // Get meeting details by code
+  getMeetingByCode: async (meetingCode) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/api/meetings/code/${meetingCode}`)
+      return response.data
+    } catch (error) {
+      console.error("❌ Error getting meeting:", error.response?.data || error.message)
+      throw error
+    }
+  },
+
+  // Delete meeting
+  deleteMeeting: async (meetingId, token) => {
+    try {
+      const response = await axios.delete(`${BASE_URL}/api/meetings/${meetingId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error deleting meeting:", error.response?.data || error.message)
+      throw error
+    }
+  },
+}
+
+function isUpcoming(meeting) {
+  return new Date(meeting.date || meeting.scheduledTime) > new Date()
 }
 
 export default function MeetingsTab() {
-const { meetings, addMeeting } = useMeetings();
-  const { theme } = useThemeContext();
-  const isDarkTheme = theme === 'dark';
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('All');
-  const [showVideoCall, setShowVideoCall] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(true);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const { meetings, setMeetings, addMeeting } = useMeetings()
+  const { theme } = useThemeContext()
+  const isDarkTheme = theme === "dark"
 
+  // UI States
+  const [search, setSearch] = useState("")
+  const [filter, setFilter] = useState("All")
+  const [showVideoCall, setShowVideoCall] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const [chatMessage, setChatMessage] = useState("")
+  const [currentMeeting, setCurrentMeeting] = useState(null)
+
+  // Video Call States
+  const [isMuted, setIsMuted] = useState(false)
+  const [isVideoOn, setIsVideoOn] = useState(true)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+
+  // Loading States
+  const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // ✅ Get user token (you'll need to implement this based on your auth system)
+  const getUserToken = () => {
+    // This should get the JWT token from your auth context/storage
+    // For now, returning null - you need to implement this
+    return null // TODO: Implement token retrieval
+  }
+
+  const getUserEmail = () => {
+    // This should get the current user's email
+    // For now, returning a placeholder - you need to implement this
+    return "user@example.com" // TODO: Implement email retrieval
+  }
+
+  // ✅ Load meetings from backend on component mount
+  useEffect(() => {
+    loadMeetings()
+  }, [])
+
+  const loadMeetings = async () => {
+    setIsRefreshing(true)
+    try {
+      const token = getUserToken()
+      if (token) {
+        const backendMeetings = await apiService.getMyMeetings(token)
+        setMeetings(backendMeetings)
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to load meetings")
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // ✅ Updated start meeting function
   const handleStartMeeting = async () => {
-  const now = new Date();
-  const meeting = {
-    title: 'Instant Meeting',
-    description: 'Quick meeting started manually',
-    date: now,
-    duration: 30,
-    participants: 1,
-  };
+    setIsLoading(true)
+    try {
+      const token = getUserToken()
+      if (!token) {
+        Alert.alert("Error", "Please login to start a meeting")
+        return
+      }
 
-  await addMeeting(meeting);
-  setShowVideoCall(true); // Show video modal immediately
-};
+      const meetingData = {
+        title: "Instant Meeting",
+        description: "Quick meeting started manually",
+        scheduledTime: new Date().toISOString(),
+        duration: 30,
+        participantsEmails: [getUserEmail()], // Add current user
+        isInstant: true,
+      }
 
+      const newMeeting = await apiService.scheduleMeeting(meetingData, token)
+
+      // Add to local state
+      addMeeting(newMeeting)
+      setCurrentMeeting(newMeeting)
+      setShowVideoCall(true)
+
+      Alert.alert("Success", "Meeting started successfully!")
+    } catch (error) {
+      Alert.alert("Error", "Failed to start meeting")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ✅ Updated join meeting function
+  const handleJoinMeeting = async (meeting) => {
+    setIsLoading(true)
+    try {
+      const userEmail = getUserEmail()
+      const meetingCode = meeting.code || meeting.id // Use code if available, fallback to id
+
+      const joinResponse = await apiService.joinMeetingByCode(meetingCode, userEmail)
+
+      setCurrentMeeting(meeting)
+      setShowVideoCall(true)
+
+      Alert.alert("Success", `Joined meeting: ${meeting.title}`)
+    } catch (error) {
+      if (error.response?.status === 403) {
+        Alert.alert("Access Denied", "You are not invited to this meeting")
+      } else if (error.response?.status === 404) {
+        Alert.alert("Meeting Not Found", "This meeting does not exist")
+      } else {
+        Alert.alert("Error", "Failed to join meeting")
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ✅ Add delete meeting function
+  const handleDeleteMeeting = async (meetingId) => {
+    Alert.alert("Delete Meeting", "Are you sure you want to delete this meeting?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const token = getUserToken()
+            await apiService.deleteMeeting(meetingId, token)
+
+            // Remove from local state
+            setMeetings(meetings.filter((m) => m.id !== meetingId))
+            Alert.alert("Success", "Meeting deleted successfully")
+          } catch (error) {
+            if (error.response?.status === 403) {
+              Alert.alert("Error", "Only the host can delete this meeting")
+            } else {
+              Alert.alert("Error", "Failed to delete meeting")
+            }
+          }
+        },
+      },
+    ])
+  }
+
+  const handleEndCall = () => {
+    setShowVideoCall(false)
+    setShowChat(false)
+    setCurrentMeeting(null)
+    setIsMuted(false)
+    setIsVideoOn(true)
+    setIsScreenSharing(false)
+    setIsRecording(false)
+  }
+
+  const handleSendMessage = () => {
+    if (chatMessage.trim()) {
+      // TODO: Implement real chat functionality with WebSocket
+      // For now, just clear the input
+      setChatMessage("")
+    }
+  }
 
   const themeColors = {
-    background: isDarkTheme ? '#1c1c1c' : '#ffffff',
-    cardBackground: isDarkTheme ? '#232323' : '#f8f9fa',
-    searchBackground: isDarkTheme ? '#222' : '#f0f0f0',
-    filterBackground: isDarkTheme ? '#222' : '#f0f0f0',
-    filterActive: '#0a84ff',
-    textPrimary: isDarkTheme ? '#fff' : '#000',
-    textSecondary: isDarkTheme ? '#aaa' : '#666',
-    textTertiary: isDarkTheme ? '#ccc' : '#888',
-    borderColor: isDarkTheme ? '#333' : '#e0e0e0',
-    videoCallBackground: isDarkTheme ? '#000' : '#1a1a1a',
-    controlBackground: isDarkTheme ? '#333' : '#f0f0f0',
-    inputBackground: isDarkTheme ? '#2a2a2a' : '#f8f9fa',
-    accent: '#007AFF',
-  };
+    background: isDarkTheme ? "#1c1c1c" : "#ffffff",
+    cardBackground: isDarkTheme ? "#232323" : "#f8f9fa",
+    searchBackground: isDarkTheme ? "#222" : "#f0f0f0",
+    filterBackground: isDarkTheme ? "#222" : "#f0f0f0",
+    filterActive: "#0a84ff",
+    textPrimary: isDarkTheme ? "#fff" : "#000",
+    textSecondary: isDarkTheme ? "#aaa" : "#666",
+    textTertiary: isDarkTheme ? "#ccc" : "#888",
+    borderColor: isDarkTheme ? "#333" : "#e0e0e0",
+    videoCallBackground: isDarkTheme ? "#000" : "#1a1a1a",
+    controlBackground: isDarkTheme ? "#333" : "#f0f0f0",
+    inputBackground: isDarkTheme ? "#2a2a2a" : "#f8f9fa",
+    accent: "#007AFF",
+  }
 
-  // Helper: returns true if meeting should be visible (upcoming or ended within 24 hours)
-  function isVisibleMeeting(meeting: any) {
-    const now = new Date();
-    const start = new Date(meeting.date);
-    const end = new Date(start.getTime() + (meeting.duration || 0) * 60000);
-    // Show if meeting ends in the future, or ended within the last 24 hours
-    return end.getTime() + 24 * 60 * 60 * 1000 > now.getTime();
+  // Helper: returns true if meeting should be visible
+  function isVisibleMeeting(meeting) {
+    const now = new Date()
+    const start = new Date(meeting.date || meeting.scheduledTime)
+    const end = new Date(start.getTime() + (meeting.duration || 0) * 60000)
+    return end.getTime() + 24 * 60 * 60 * 1000 > now.getTime()
   }
 
   const filteredMeetings = meetings
     .filter(isVisibleMeeting)
-    .filter(m =>
-      m.title.toLowerCase().includes(search.toLowerCase())
-    )
-    .filter(m => {
-      if (filter === 'Upcoming') return isUpcoming(m);
-      if (filter === 'Past') return !isUpcoming(m);
-      return true;
-    });
-
-  const handleJoinMeeting = () => {
-    setShowVideoCall(true);
-  };
-
-  const handleEndCall = () => {
-    setShowVideoCall(false);
-    setShowChat(false);
-    setIsMuted(false);
-    setIsVideoOn(true);
-    setIsScreenSharing(false);
-    setIsRecording(false);
-  };
-
-  const handleSendMessage = () => {
-    if (chatMessage.trim()) {
-      // In a real app, this would send the message
-      setChatMessage('');
-    }
-  };
+    .filter((m) => (m.title || "").toLowerCase().includes(search.toLowerCase()))
+    .filter((m) => {
+      if (filter === "Upcoming") return isUpcoming(m)
+      if (filter === "Past") return !isUpcoming(m)
+      return true
+    })
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <View style={styles.meetingTabContentWrapper}>
-        
-        {/* Search Bar with marginTop */}
+        {/* Search Bar */}
         <View style={[styles.searchBar, { backgroundColor: themeColors.searchBackground }]}>
           <Ionicons name="search" size={20} color={themeColors.textSecondary} />
           <TextInput
@@ -142,7 +306,7 @@ const { meetings, addMeeting } = useMeetings();
 
         {/* Filter Bar */}
         <View style={styles.filterBar}>
-          {FILTERS.map(f => (
+          {FILTERS.map((f) => (
             <TouchableOpacity
               key={f}
               style={[
@@ -151,58 +315,86 @@ const { meetings, addMeeting } = useMeetings();
               ]}
               onPress={() => setFilter(f)}
             >
-              <Text style={[
-                styles.filterText,
-                { color: filter === f ? '#fff' : themeColors.textSecondary }
-              ]}>
-                {f}
-              </Text>
+              <Text style={[styles.filterText, { color: filter === f ? "#fff" : themeColors.textSecondary }]}>{f}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
+        {/* Start Meeting Button */}
         <TouchableOpacity
-  style={{
-    backgroundColor: themeColors.accent,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-  }}
-  onPress={handleStartMeeting}
->
-  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Start a Meeting</Text>
-</TouchableOpacity>
+          style={{
+            backgroundColor: themeColors.accent,
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+            alignItems: "center",
+            opacity: isLoading ? 0.6 : 1,
+          }}
+          onPress={handleStartMeeting}
+          disabled={isLoading}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>
+            {isLoading ? "Starting Meeting..." : "Start a Meeting"}
+          </Text>
+        </TouchableOpacity>
 
+        {/* Refresh Button */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: themeColors.filterBackground,
+            padding: 8,
+            borderRadius: 6,
+            marginBottom: 16,
+            alignItems: "center",
+            opacity: isRefreshing ? 0.6 : 1,
+          }}
+          onPress={loadMeetings}
+          disabled={isRefreshing}
+        >
+          <Text style={{ color: themeColors.textPrimary, fontSize: 12 }}>
+            {isRefreshing ? "Refreshing..." : "Refresh Meetings"}
+          </Text>
+        </TouchableOpacity>
 
         {/* Meetings List */}
         <FlatList
           data={filteredMeetings}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => <MeetingCard meeting={item} themeColors={themeColors} onJoin={handleJoinMeeting} />}
+          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+          renderItem={({ item }) => (
+            <MeetingCard
+              meeting={item}
+              themeColors={themeColors}
+              onJoin={() => handleJoinMeeting(item)}
+              onDelete={() => handleDeleteMeeting(item.id)}
+            />
+          )}
           ListEmptyComponent={
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 60 }}>
-              <Ionicons name="calendar-outline" size={48} color={themeColors.textSecondary} style={{ marginBottom: 16 }} />
-              <Text style={[styles.emptyText, { color: themeColors.textSecondary, fontSize: 18, textAlign: 'center' }]}>No meetings scheduled.</Text>
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", marginTop: 60 }}>
+              <Ionicons
+                name="calendar-outline"
+                size={48}
+                color={themeColors.textSecondary}
+                style={{ marginBottom: 16 }}
+              />
+              <Text style={[styles.emptyText, { color: themeColors.textSecondary, fontSize: 18, textAlign: "center" }]}>
+                No meetings scheduled.
+              </Text>
             </View>
           }
           contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+          refreshing={isRefreshing}
+          onRefresh={loadMeetings}
         />
       </View>
 
       {/* Video Call Modal */}
-      <Modal
-        visible={showVideoCall}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={handleEndCall}
-      >
+      <Modal visible={showVideoCall} animationType="slide" transparent={false} onRequestClose={handleEndCall}>
         <View style={[styles.videoCallContainer, { backgroundColor: themeColors.videoCallBackground }]}>
           {/* Header */}
           <View style={styles.videoCallHeader}>
             <View style={styles.meetingInfo}>
-              <Text style={[styles.meetingTitle, { color: '#fff' }]}>Team Standup</Text>
-              <Text style={[styles.meetingDuration, { color: '#ccc' }]}>00:15:32</Text>
+              <Text style={[styles.meetingTitle, { color: "#fff" }]}>{currentMeeting?.title || "Meeting"}</Text>
+              <Text style={[styles.meetingDuration, { color: "#ccc" }]}>00:15:32</Text>
             </View>
             <View style={styles.headerControls}>
               <TouchableOpacity style={styles.headerButton}>
@@ -216,36 +408,11 @@ const { meetings, addMeeting } = useMeetings();
 
           {/* Participants Grid */}
           <View style={styles.participantsGrid}>
-            {mockParticipants.map((participant, index) => (
-              <View key={participant.id} style={styles.participantTile}>
-                {participant.isVideoOn ? (
-                  <View style={[styles.videoContainer, { backgroundColor: '#2a2a2a' }]}>
-                    <Text style={[styles.participantName, { color: '#fff' }]}>{participant.name}</Text>
-                    {participant.isSpeaking && <View style={styles.speakingIndicator} />}
-                  </View>
-                ) : (
-                  <View style={[styles.avatarContainer, { backgroundColor: '#2a2a2a' }]}>
-                    <Text style={[styles.avatarText, { color: '#fff' }]}>
-                      {participant.name.split(' ').map(n => n[0]).join('')}
-                    </Text>
-                  </View>
-                )}
-                
-                {/* Status indicators */}
-                <View style={styles.participantStatus}>
-                  {participant.isMuted && (
-                    <View style={styles.statusIcon}>
-                      <Ionicons name="mic-off" size={12} color="#fff" />
-                    </View>
-                  )}
-                  {participant.isHost && (
-                    <View style={[styles.statusIcon, { backgroundColor: '#007AFF' }]}>
-                      <Text style={styles.hostText}>H</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            ))}
+            <View style={[styles.participantTile, { backgroundColor: "#2a2a2a" }]}>
+              <Text style={[styles.participantName, { color: "#fff" }]}>
+                {currentMeeting ? "Connected to meeting" : "Loading Participants..."}
+              </Text>
+            </View>
           </View>
 
           {/* Chat Panel */}
@@ -257,26 +424,23 @@ const { meetings, addMeeting } = useMeetings();
                   <Ionicons name="close" size={24} color={themeColors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              
+
               <ScrollView style={styles.chatMessages}>
-                {mockChatMessages.map(message => (
-                  <View key={message.id} style={styles.chatMessage}>
-                    <Text style={[styles.chatSender, { color: themeColors.textPrimary }]}>
-                      {message.sender}
-                    </Text>
-                    <Text style={[styles.chatText, { color: themeColors.textSecondary }]}>
-                      {message.message}
-                    </Text>
-                    <Text style={[styles.chatTime, { color: themeColors.textTertiary }]}>
-                      {message.timestamp}
-                    </Text>
-                  </View>
-                ))}
+                <View style={styles.chatMessage}>
+                  <Text style={[styles.chatSender, { color: themeColors.textPrimary }]}>System</Text>
+                  <Text style={[styles.chatText, { color: themeColors.textSecondary }]}>
+                    Chat functionality is under development.
+                  </Text>
+                  <Text style={[styles.chatTime, { color: themeColors.textTertiary }]}>Now</Text>
+                </View>
               </ScrollView>
-              
+
               <View style={styles.chatInput}>
                 <TextInput
-                  style={[styles.chatInputField, { backgroundColor: themeColors.inputBackground, color: themeColors.textPrimary }]}
+                  style={[
+                    styles.chatInputField,
+                    { backgroundColor: themeColors.inputBackground, color: themeColors.textPrimary },
+                  ]}
                   placeholder="Type a message..."
                   placeholderTextColor={themeColors.textSecondary}
                   value={chatMessage}
@@ -292,63 +456,54 @@ const { meetings, addMeeting } = useMeetings();
           {/* Controls */}
           <View style={[styles.controls, { backgroundColor: themeColors.controlBackground }]}>
             <TouchableOpacity
-              style={[styles.controlButton, isMuted && { backgroundColor: '#ff3b30' }]}
+              style={[styles.controlButton, isMuted && { backgroundColor: "#ff3b30" }]}
               onPress={() => setIsMuted(!isMuted)}
             >
               <Ionicons name={isMuted ? "mic-off" : "mic"} size={24} color="#fff" />
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={[styles.controlButton, !isVideoOn && { backgroundColor: '#ff3b30' }]}
+              style={[styles.controlButton, !isVideoOn && { backgroundColor: "#ff3b30" }]}
               onPress={() => setIsVideoOn(!isVideoOn)}
             >
               <Ionicons name={isVideoOn ? "videocam" : "videocam-off"} size={24} color="#fff" />
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={[styles.controlButton, isScreenSharing && { backgroundColor: '#007AFF' }]}
+              style={[styles.controlButton, isScreenSharing && { backgroundColor: "#007AFF" }]}
               onPress={() => setIsScreenSharing(!isScreenSharing)}
             >
               <Ionicons name="desktop-outline" size={24} color="#fff" />
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={[styles.controlButton, showChat && { backgroundColor: '#007AFF' }]}
+              style={[styles.controlButton, showChat && { backgroundColor: "#007AFF" }]}
               onPress={() => setShowChat(!showChat)}
             >
               <Ionicons name="chatbubble-outline" size={24} color="#fff" />
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={[styles.controlButton, isRecording && { backgroundColor: '#ff3b30' }]}
+              style={[styles.controlButton, isRecording && { backgroundColor: "#ff3b30" }]}
               onPress={() => setIsRecording(!isRecording)}
             >
               <Ionicons name={isRecording ? "stop-circle" : "radio-button-on"} size={24} color="#fff" />
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.controlButton, { backgroundColor: '#ff3b30' }]}
-              onPress={handleEndCall}
-            >
+            <TouchableOpacity style={[styles.controlButton, { backgroundColor: "#ff3b30" }]} onPress={handleEndCall}>
               <Ionicons name="call" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
     </View>
-  );
+  )
 }
 
-function MeetingCard({ meeting, themeColors, onJoin }: { meeting: any; themeColors: any; onJoin: () => void }) {
-  const now = new Date();
-  const start = new Date(meeting.date);
-  const end = new Date(start.getTime() + meeting.duration * 60000);
-  const isUpcoming = start > now;
-  const status = isUpcoming ? 'Upcoming' : 'Ended';
+function MeetingCard({ meeting, themeColors, onJoin, onDelete }) {
+  const now = new Date()
+  const start = new Date(meeting.date || meeting.scheduledTime)
+  const isUpcoming = start > now
+  const status = isUpcoming ? "Upcoming" : "Ended"
 
   return (
     <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
         <Text style={[styles.title, { color: themeColors.textPrimary }]}>{meeting.title}</Text>
         <View style={[styles.badge, isUpcoming ? styles.badgeUpcoming : styles.badgeEnded]}>
           <Text style={styles.badgeText}>{status}</Text>
@@ -357,15 +512,13 @@ function MeetingCard({ meeting, themeColors, onJoin }: { meeting: any; themeColo
 
       <View style={styles.row}>
         <MaterialIcons name="calendar-today" size={16} color={themeColors.textSecondary} />
-        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
-          {start.toLocaleDateString()}
-        </Text>
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>{start.toLocaleDateString()}</Text>
       </View>
 
       <View style={styles.row}>
         <Ionicons name="time" size={16} color={themeColors.textSecondary} />
         <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
-          {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {meeting.duration} min
+          {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} • {meeting.duration} min
         </Text>
       </View>
 
@@ -373,38 +526,42 @@ function MeetingCard({ meeting, themeColors, onJoin }: { meeting: any; themeColo
         <View style={styles.row}>
           <Ionicons name="people" size={16} color={themeColors.textSecondary} />
           <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
-            {meeting.participants ?? 0} participant{(meeting.participants ?? 0) !== 1 ? 's' : ''}
+            {meeting.participantsEmails?.length || 0} participant
+            {(meeting.participantsEmails?.length || 0) !== 1 ? "s" : ""}
           </Text>
         </View>
       )}
 
       <View style={styles.row}>
         <Ionicons name="key" size={16} color={themeColors.textSecondary} />
-        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
-          {meeting.id}
-        </Text>
-        {isUpcoming && (
-          <TouchableOpacity style={styles.joinBtn} onPress={onJoin}>
-            <Text style={styles.joinText}>Join</Text>
+        <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>{meeting.code || meeting.id}</Text>
+
+        <View style={{ flexDirection: "row", marginLeft: "auto" }}>
+          {isUpcoming && (
+            <TouchableOpacity style={styles.joinBtn} onPress={onJoin}>
+              <Text style={styles.joinText}>Join</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={[styles.deleteBtn, { marginLeft: 8 }]} onPress={onDelete}>
+            <Ionicons name="trash-outline" size={16} color="#ff3b30" />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
 
       {meeting.description ? (
-        <Text style={[styles.desc, { color: themeColors.textTertiary }]}>
-          {meeting.description}
-        </Text>
+        <Text style={[styles.desc, { color: themeColors.textTertiary }]}>{meeting.description}</Text>
       ) : null}
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   meetingTabContentWrapper: {},
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 8,
     paddingHorizontal: 10,
     marginBottom: 12,
@@ -412,8 +569,8 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, padding: 8 },
   filterBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     marginBottom: 16,
   },
   filterBtn: {
@@ -421,47 +578,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 20,
   },
-  filterText: { fontWeight: 'bold' },
+  filterText: { fontWeight: "bold" },
   card: {
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
-  title: { fontWeight: 'bold', fontSize: 17, flex: 1 },
+  title: { fontWeight: "bold", fontSize: 17, flex: 1 },
   badge: {
     marginLeft: 10,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  badgeUpcoming: { backgroundColor: '#0a84ff' },
-  badgeEnded: { backgroundColor: '#999' },
-  badgeText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+  badgeUpcoming: { backgroundColor: "#0a84ff" },
+  badgeEnded: { backgroundColor: "#999" },
+  badgeText: { color: "#fff", fontWeight: "bold", fontSize: 12 },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
   },
   infoText: { marginLeft: 8, fontSize: 14 },
   joinBtn: {
-    backgroundColor: '#0a84ff',
+    backgroundColor: "#0a84ff",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 6,
-    marginLeft: 10,
   },
-  joinText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
-  desc: { marginTop: 8, fontSize: 14, fontStyle: 'italic' },
-  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 16 },
+  joinText: { color: "#fff", fontWeight: "bold", fontSize: 12 },
+  deleteBtn: {
+    padding: 4,
+  },
+  desc: { marginTop: 8, fontSize: 14, fontStyle: "italic" },
+  emptyText: { textAlign: "center", marginTop: 40, fontSize: 16 },
 
   // Video Call Styles
   videoCallContainer: {
     flex: 1,
   },
   videoCallHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
@@ -471,90 +630,47 @@ const styles = StyleSheet.create({
   },
   meetingTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   meetingDuration: {
     fontSize: 14,
     marginTop: 2,
   },
   headerControls: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
   },
   headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   participantsGrid: {
     flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     padding: 10,
     gap: 8,
   },
   participantTile: {
     width: (screenWidth - 40) / 2,
     height: 120,
-    position: 'relative',
-  },
-  videoContainer: {
-    flex: 1,
+    position: "relative",
     borderRadius: 8,
-    justifyContent: 'flex-end',
-    padding: 8,
-  },
-  avatarContainer: {
-    flex: 1,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    justifyContent: "center",
+    alignItems: "center",
   },
   participantName: {
     fontSize: 12,
-    fontWeight: '600',
-  },
-  participantStatus: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  statusIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  hostText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  speakingIndicator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderWidth: 2,
-    borderColor: '#34C759',
-    borderRadius: 8,
+    fontWeight: "600",
   },
   controls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 20,
     paddingBottom: 40,
@@ -563,12 +679,12 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   chatPanel: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     top: 100,
     bottom: 120,
@@ -577,16 +693,16 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
   },
   chatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderBottomColor: "rgba(0,0,0,0.1)",
   },
   chatTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   chatMessages: {
     flex: 1,
@@ -597,7 +713,7 @@ const styles = StyleSheet.create({
   },
   chatSender: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 2,
   },
   chatText: {
@@ -608,8 +724,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   chatInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     gap: 12,
   },
@@ -620,4 +736,4 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 14,
   },
-});
+})

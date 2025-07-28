@@ -1,7 +1,7 @@
 // Updated authService.js to use backend endpoints and JWT token
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:8080'; // Change to your backend URL if needed
+const API_URL = 'https://syncmeet-back.onrender.com';
 
 export async function signInWithEmail(email, password) {
   const res = await fetch(`${API_URL}/req/login`, {

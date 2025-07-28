@@ -5,7 +5,6 @@
 // Toast must be rendered outside the navigation tree to avoid expo-router layout warnings.
 // For more info: https://docs.expo.dev/develop/development-builds/introduction/
 // =============================
-import { ClerkProvider } from '@clerk/clerk-expo';
 import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
 import React, { useEffect } from 'react';
@@ -14,10 +13,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import { AuthProvider, useAuth } from '../components/auth-context';
+import { ContactProvider } from '../components/ContactContext';
 import { MeetingProvider } from '../components/MeetingContext';
 import { ScheduleProvider } from '../components/ScheduleContext';
 import { ThemeProvider } from '../components/ThemeContext';
 import { initializeNotifications } from '../utils/notifications';
+import { ChatProvider } from '../components/ChatContext';
+import { ParticipantProvider } from '../components/ParticipantContext';
 
 const clerkPublishableKey = Constants.expoConfig?.extra?.clerkPublishableKey || process.env.CLERK_PUBLISHABLE_KEY;
 
@@ -56,21 +58,27 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <ErrorBoundary>
-          {/* Toast must be outside the navigation tree to avoid expo-router layout warning */}
-          <Toast />
-          <AuthAndThemeProviders>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ChatProvider>
+        <ParticipantProvider>
+          <ContactProvider>
             <MeetingProvider>
               <ScheduleProvider>
-                <RootStackWithAuth />
+                <View style={{ flex: 1 }}>
+                  <ErrorBoundary>
+                    {/* Toast must be outside the navigation tree to avoid expo-router layout warning */}
+                    <Toast />
+                    <AuthAndThemeProviders>
+                      <RootStackWithAuth />
+                    </AuthAndThemeProviders>
+                  </ErrorBoundary>
+                </View>
               </ScheduleProvider>
             </MeetingProvider>
-          </AuthAndThemeProviders>
-        </ErrorBoundary>
-      </GestureHandlerRootView>
-    </ClerkProvider>
+          </ContactProvider>
+        </ParticipantProvider>
+      </ChatProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -105,6 +113,3 @@ function RootStackWithAuth() {
     </Stack>
   );
 }
-
-
-

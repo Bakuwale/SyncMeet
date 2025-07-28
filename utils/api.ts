@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080',
+  BASE_URL: 'https://syncmeet-back.onrender.com',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
 };
@@ -9,8 +9,8 @@ export const API_CONFIG = {
 export const API_ENDPOINTS = {
   // Authentication
   AUTH: {
-    LOGIN: '/api/auth/login',
-    SIGNUP: '/api/auth/signup',
+    LOGIN: '/req/login',
+    SIGNUP: '/req/signup',
     LOGOUT: '/api/auth/logout',
     REFRESH: '/api/auth/refresh',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
@@ -285,42 +285,23 @@ class ApiClient {
   }
 
   // Authentication methods
-  async login(credentials: LoginRequest): Promise<ApiResponse<{ token: string; user: UserProfile }>> {
-    const response = await this.post(API_ENDPOINTS.AUTH.LOGIN, credentials, false);
-    
-    if (response.success && response.data) {
-      // No token setting for demo purposes
-      // await this.setAuthToken(response.data.token);
-    }
-    
+  async login(credentials: LoginRequest): Promise<ApiResponse<{ token: string }>> {
+    const response = await this.post<{ token: string }>(API_ENDPOINTS.AUTH.LOGIN, credentials, false);
     return response;
   }
 
-  async signup(userData: SignupRequest): Promise<ApiResponse<{ token: string; user: UserProfile }>> {
-    const response = await this.post(API_ENDPOINTS.AUTH.SIGNUP, userData, false);
-    
-    if (response.success && response.data) {
-      // No token setting for demo purposes
-      // await this.setAuthToken(response.data.token);
-    }
-    
+  async signup(userData: SignupRequest): Promise<ApiResponse<{ token: string }>> {
+    const response = await this.post<{ token: string }>(API_ENDPOINTS.AUTH.SIGNUP, userData, false);
     return response;
   }
 
-  async logout(): Promise<ApiResponse<void>> {
-    const response = await this.post(API_ENDPOINTS.AUTH.LOGOUT, {});
-    // No token removal for demo purposes
+  async logout(): Promise<ApiResponse<any>> {
+    const response = await this.post<any>(API_ENDPOINTS.AUTH.LOGOUT, {});
     return response;
   }
 
   async refreshToken(): Promise<ApiResponse<{ token: string }>> {
-    const response = await this.post(API_ENDPOINTS.AUTH.REFRESH, {}, false);
-    
-    if (response.success && response.data) {
-      // No token setting for demo purposes
-      // await this.setAuthToken(response.data.token);
-    }
-    
+    const response = await this.post<{ token: string }>(API_ENDPOINTS.AUTH.REFRESH, {}, false);
     return response;
   }
 

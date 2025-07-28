@@ -17,6 +17,7 @@ type AuthContextType = {
   loading: boolean;
   updateUser: (user: Partial<User>) => Promise<void>;
   getToken: () => Promise<string | null>;
+  resetPassword: (email: string) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -25,7 +26,7 @@ export function useAuth() {
   return useContext(AuthContext)!;
 }
 
-const API_URL = 'http://localhost:8080'; // Change to your backend URL if needed
+const API_URL = 'https://syncmeet-back.onrender.com';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -64,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('profilePhoto', data.profilePhoto || '');
       setUser({ email: data.email, token: result.token, fullName: data.fullName, profilePhoto: data.profilePhoto });
       return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return false;
     }
@@ -82,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('email', email);
       setUser({ email, token: result.token });
       return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return false;
     }
@@ -105,12 +108,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (updated.phone !== undefined) await AsyncStorage.setItem('phone', updated.phone || '');
   };
 
+  const resetPassword = async (email: string) => {
+  try {
+    const res = await fetch(`${API_URL}/req/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw new Error('Reset password request failed');
+    return true;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (e) {
+    return false;
+  }
+};
+
+
   const getToken = async () => {
     return await AsyncStorage.getItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ user, signup, login, logout, loading, updateUser, getToken }}>
+    <AuthContext.Provider value={{ user, signup, login, logout, loading, updateUser, getToken, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

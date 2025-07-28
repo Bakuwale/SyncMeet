@@ -1,7 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React from 'react'
 import FontAwesome from 'react-native-vector-icons/FontAwesome'
-import { menusItems } from '../constants/temData'
 
 type MenuButtonType = {
 	handleNavigate: (title: string) => void
@@ -11,7 +10,12 @@ export default function MenuButton({ handleNavigate }: MenuButtonType) {
 	return (
 		<View style={styles.container}>
 			<View style={styles.buttonContainer}>
-				{menusItems.map(({ name, title }, index) => (
+				{[
+					{ name: 'home', title: 'Home' },
+					{ name: 'search', title: 'Search' },
+					{ name: 'heart', title: 'Favorites' },
+					{ name: 'user', title: 'Profile' },
+				].map(({ name, title }, index) => (
 					<TouchableOpacity
 						key={index}
 						style={index === 0 ? styles.customButton : styles.button}

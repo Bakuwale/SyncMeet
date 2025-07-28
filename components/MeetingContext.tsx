@@ -22,6 +22,8 @@ type MeetingContextType = {
   addMeeting: (meeting: Omit<Meeting, 'id'>) => void;
   deleteMeeting: (id: string) => void;
   updateMeeting: (id: string, meeting: Partial<Meeting>) => void;
+  loading: boolean;
+  error: string | null;
 };
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
@@ -35,10 +37,23 @@ export const useMeetings = () => {
 export const MeetingProvider = ({ children }: { children: ReactNode }) => {
   // Initialize with an empty array (no dummy meetings)
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  // Add loading and error state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Initialize notifications on app start
   useEffect(() => {
     initializeNotifications();
+  }, []);
+
+  // Fetch meetings from API (simulate with setTimeout for now)
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setTimeout(() => {
+      setMeetings([]); // TODO: Replace with real API call
+      setLoading(false);
+    }, 1000);
   }, []);
 
   const addMeeting = async (meeting: Omit<Meeting, 'id'>) => {
@@ -111,7 +126,7 @@ export const MeetingProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <MeetingContext.Provider value={{ meetings, addMeeting, deleteMeeting, updateMeeting }}>
+    <MeetingContext.Provider value={{ meetings, addMeeting, deleteMeeting, updateMeeting, loading, error }}>
       {children}
       <Toast />
     </MeetingContext.Provider>

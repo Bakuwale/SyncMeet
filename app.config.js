@@ -11,7 +11,6 @@ export default {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     extra: {
-      clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY,
       eas: {
         projectId: "82374afa-decb-4001-b480-3faa5197fced"
       }
