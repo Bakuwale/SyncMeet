@@ -11,45 +11,45 @@ export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/req/login',
     SIGNUP: '/req/signup',
-    LOGOUT: '/api/auth/logout',
-    REFRESH: '/api/auth/refresh',
-    FORGOT_PASSWORD: '/api/auth/forgot-password',
-    RESET_PASSWORD: '/api/auth/reset-password',
-    VERIFY_EMAIL: '/api/auth/verify-email',
+    LOGOUT: '/req/logout',
+    REFRESH: '/req/refresh',
+    FORGOT_PASSWORD: '/req/forgot-password',
+    RESET_PASSWORD: '/req/reset-password',
+    VERIFY_EMAIL: '/req/verify-email',
   },
   // User Management
   USER: {
-    PROFILE: '/api/user/profile',
-    UPDATE_PROFILE: '/api/user/profile',
-    PREFERENCES: '/api/user/preferences',
-    UPDATE_PREFERENCES: '/api/user/preferences',
+    PROFILE: '/req/user/profile',
+    UPDATE_PROFILE: '/req/user/profile',
+    PREFERENCES: '/req/user/preferences',
+    UPDATE_PREFERENCES: '/req/user/preferences',
   },
   // Meeting Management
   MEETINGS: {
-    LIST: '/api/meetings',
-    CREATE: '/api/meetings',
-    GET: (id: string) => `/api/meetings/${id}`,
-    UPDATE: (id: string) => `/api/meetings/${id}`,
-    DELETE: (id: string) => `/api/meetings/${id}`,
-    JOIN: (id: string) => `/api/meetings/${id}/join`,
-    LEAVE: (id: string) => `/api/meetings/${id}/leave`,
-    PARTICIPANTS: (id: string) => `/api/meetings/${id}/participants`,
-    RECORDING: (id: string) => `/api/meetings/${id}/recording`,
+    LIST: '/req/meetings',
+    CREATE: '/req/meetings',
+    GET: (id: string) => `/req/meetings/${id}`,
+    UPDATE: (id: string) => `/req/meetings/${id}`,
+    DELETE: (id: string) => `/req/meetings/${id}`,
+    JOIN: (id: string) => `/req/meetings/${id}/join`,
+    LEAVE: (id: string) => `/req/meetings/${id}/leave`,
+    PARTICIPANTS: (id: string) => `/req/meetings/${id}/participants`,
+    RECORDING: (id: string) => `/req/meetings/${id}/recording`,
   },
   // Calendar Integration
   CALENDAR: {
-    EVENTS: '/api/calendar/events',
-    SYNC: '/api/calendar/sync',
-    INTEGRATION: '/api/calendar/integration',
+    EVENTS: '/req/calendar/events',
+    SYNC: '/req/calendar/sync',
+    INTEGRATION: '/req/calendar/integration',
   },
   // Contacts
   CONTACTS: {
-    LIST: '/api/contacts',
-    CREATE: '/api/contacts',
-    GET: (id: string) => `/api/contacts/${id}`,
-    UPDATE: (id: string) => `/api/contacts/${id}`,
-    DELETE: (id: string) => `/api/contacts/${id}`,
-    SEARCH: '/api/contacts/search',
+    LIST: '/req/contacts',
+    CREATE: '/req/contacts',
+    GET: (id: string) => `/req/contacts/${id}`,
+    UPDATE: (id: string) => `/req/contacts/${id}`,
+    DELETE: (id: string) => `/req/contacts/${id}`,
+    SEARCH: '/req/contacts/search',
   },
   // WebSocket endpoints for real-time features
   WEBSOCKET: {
@@ -158,9 +158,9 @@ class ApiClient {
   }
 
   // Create headers for requests
-  private async createHeaders(includeAuth: boolean = true): Promise<HeadersInit> {
+  private async createHeaders(includeAuth: boolean = true, contentType: string = 'application/json'): Promise<HeadersInit> {
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      'Content-Type': contentType,
       'Accept': 'application/json',
     };
 
@@ -179,13 +179,21 @@ class ApiClient {
   private async makeRequest<T>(
     url: string,
     options: RequestInit,
-    retryCount: number = 0
+    retryCount: number = 0,
+    contentType: string = 'application/json'
   ): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(url, {
-        ...options,
-        signal: AbortSignal.timeout(this.timeout),
+      // Create a timeout promise that rejects after the specified timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), this.timeout);
       });
+
+      // Create the fetch promise with manually implemented timeout
+      // Not using AbortSignal.timeout() as it's not supported in all environments
+      const fetchPromise = fetch(url, options);
+
+      // Race the fetch against the timeout
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
 
       const responseData = await response.json();
 
@@ -231,14 +239,14 @@ class ApiClient {
   }
 
   // Generic HTTP methods
-  async get<T>(endpoint: string, includeAuth: boolean = true): Promise<ApiResponse<T>> {
+  async get<T>(endpoint: string, includeAuth: boolean = true, contentType: string = 'application/json'): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
-    const headers = await this.createHeaders(includeAuth);
+    const headers = await this.createHeaders(includeAuth, contentType);
     
     return this.makeRequest<T>(url, {
       method: 'GET',
       headers,
-    });
+    }, 0, contentType);
   }
 
   async post<T>(endpoint: string, data: any, includeAuth: boolean = true): Promise<ApiResponse<T>> {
@@ -320,6 +328,26 @@ class ApiClient {
 
   async updateUserProfile(profile: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
     return this.put<UserProfile>(API_ENDPOINTS.USER.UPDATE_PROFILE, profile);
+  }
+  
+  // File upload method
+  async uploadFile<T>(endpoint: string, formData: FormData, includeAuth: boolean = true): Promise<ApiResponse<T>> {
+    const url = `${this.baseURL}${endpoint}`;
+    const headers = await this.createHeaders(includeAuth, 'multipart/form-data');
+    
+    return this.makeRequest<T>(url, {
+      method: 'POST',
+      headers,
+      body: formData
+    }, 0, 'multipart/form-data');
+  }
+  
+  // Profile photo upload
+  async uploadProfilePhoto(file: File): Promise<ApiResponse<{photoUrl: string}>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    return this.uploadFile<{photoUrl: string}>('/req/user/profile-photo', formData);
   }
 
   async getUserPreferences(): Promise<ApiResponse<UserPreferences>> {
@@ -418,4 +446,4 @@ export const api = {
   // Contacts
   getContacts: () => apiClient.getContacts(),
   searchContacts: (query: string) => apiClient.searchContacts(query),
-}; 
+};

@@ -28,23 +28,72 @@ const BASE_URL = "https://syncmeet-back.onrender.com"
 
 // ✅ API Service for user registration - ONLY '/req/signup' is called here
 const signupApiService = {
-  // Register new user - This is the ONLY API call remaining in this service
+  // Register new user - Enhanced with better error handling and debugging
   registerUser: async (userData) => {
     try {
-      console.log("🔄 Attempting to register user with data:", userData.email)
+      console.log("🔄 Attempting to register user with JSON data...")
+      
+      // Log the request payload for debugging
+      console.log("📤 Request payload:", JSON.stringify(userData, null, 2))
+      
       const response = await axios.post(`${BASE_URL}/req/signup`, userData, {
         headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json", // Added Accept header for clarity
+          'Content-Type': 'application/json',
+          "Accept": "application/json",
         },
-        timeout: 15000, // Added timeout for robustness
+        timeout: 30000, // Increased timeout
+        validateStatus: function (status) {
+          return status < 500; // Don't throw for 4xx errors, handle them gracefully
+        }
       })
+      
+      if (response.status === 403) {
+        throw new Error('BACKEND_SECURITY_BLOCK')
+      }
+      
       console.log("✅ Registration response status:", response.status)
+      
+      // Enhanced logging to understand the response structure
+      console.log("✅ Response data type:", typeof response.data)
+      console.log("✅ Response data keys:", Object.keys(response.data))
+      
+      // Log sample of key fields to confirm Axios's automatic JSON parsing
+      console.log("✅ Sample accessToken:", response.data.accessToken ? response.data.accessToken.substring(0, 10) + '...' : 'not found')
+      console.log("✅ Sample token:", response.data.token ? response.data.token.substring(0, 10) + '...' : 'not found')
+      console.log("✅ Sample refreshToken:", response.data.refreshToken ? response.data.refreshToken.substring(0, 10) + '...' : 'not found')
+      console.log("✅ User data present:", !!response.data.user)
+      console.log("✅ Requires email verification:", !!response.data.requiresEmailVerification)
+      
+      // Full response data for debugging
       console.log("✅ Registration response data:", JSON.stringify(response.data, null, 2))
+      
+      // Return the data directly - Axios already parsed the JSON
       return response.data
     } catch (error) {
       console.error("❌ Error registering user:", error.response?.data || error.message)
-      // Log more details for debugging 403 errors
+      
+      // Enhanced debugging for 403 errors
+      if (error.response?.status === 403 || error.message === 'BACKEND_SECURITY_BLOCK') {
+        console.error("🚫 403 FORBIDDEN - BACKEND CONFIGURATION ISSUE:")
+        console.error("   → CORS: Server not allowing frontend domain")
+        console.error("   → CSRF: Server expecting CSRF tokens")
+        console.error("   → WAF: Web Application Firewall blocking request")
+        console.error("   → Auth: Endpoint requiring authentication")
+        console.error("   → Rate Limit: Too many requests from IP")
+        console.error("")
+        console.error("🔧 BACKEND FIXES NEEDED:")
+        console.error("   1. Configure CORS to allow frontend domain")
+        console.error("   2. Disable CSRF for API endpoints")
+        console.error("   3. Check WAF/security rules")
+        console.error("   4. Verify endpoint accessibility")
+        
+        // Create a more user-friendly error
+        const backendError = new Error('BACKEND_CONFIGURATION_ERROR')
+        backendError.userMessage = 'Server configuration issue. Please contact support.'
+        throw backendError
+      }
+      
+      // Log detailed error information
       console.error("- Status:", error.response?.status)
       console.error("- Status Text:", error.response?.statusText)
       console.error("- Response Headers:", error.response?.headers)
@@ -52,10 +101,7 @@ const signupApiService = {
       console.error("- Request URL:", error.config?.url)
       console.error("- Request Headers:", error.config?.headers)
       console.error("- Error Code:", error.code)
-
-      if (error.response?.status === 403) {
-        console.error("🚫 403 Forbidden: This indicates a server-side security configuration issue (CORS, CSRF, or Authorization).")
-      }
+      
       throw error
     }
   },
@@ -145,21 +191,55 @@ export default function SignupScreen() {
   const calculatePasswordStrength = (pwd) => {
     let score = 0
     const feedback = []
+    const suggestions = []
 
-    if (pwd.length >= 8) score += 1
-    else feedback.push("8+ characters")
+    // Length check
+    if (pwd.length >= 12) score += 2
+    else if (pwd.length >= 8) score += 1
+    else {
+      feedback.push("8+ characters")
+      suggestions.push("Use at least 8 characters (12+ for better security)")
+    }
 
+    // Lowercase check
     if (/[a-z]/.test(pwd)) score += 1
-    else feedback.push("lowercase")
+    else {
+      feedback.push("lowercase")
+      suggestions.push("Add lowercase letters (a-z)")
+    }
 
+    // Uppercase check
     if (/[A-Z]/.test(pwd)) score += 1
-    else feedback.push("uppercase")
+    else {
+      feedback.push("uppercase")
+      suggestions.push("Add uppercase letters (A-Z)")
+    }
 
+    // Number check
     if (/\d/.test(pwd)) score += 1
-    else feedback.push("number")
+    else {
+      feedback.push("number")
+      suggestions.push("Add numbers (0-9)")
+    }
 
+    // Special character check
     if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) score += 1
-    else feedback.push("special char")
+    else {
+      feedback.push("special char")
+      suggestions.push("Add special characters (!@#$%^&*(),.?\":{}|<>)")
+    }
+
+    // Penalize common patterns
+    if (/^123|abc|qwerty|password|admin|welcome/i.test(pwd)) {
+      score = Math.max(0, score - 1)
+      suggestions.push("Avoid common words and patterns")
+    }
+
+    // Penalize repeated characters
+    if (/(.)(\1{2,})/.test(pwd)) {
+      score = Math.max(0, score - 1)
+      suggestions.push("Avoid repeating characters (e.g., 'aaa', '111')")
+    }
 
     const strengthLevels = [
       { text: "Very Weak", color: "#FF3B30" },
@@ -169,11 +249,18 @@ export default function SignupScreen() {
       { text: "Strong", color: "#34C759" },
     ]
 
+    // Cap score at 5
+    score = Math.min(score, 4)
+
     return {
       score,
       text: strengthLevels[score]?.text || "Very Weak",
       color: strengthLevels[score]?.color || "#FF3B30",
-      feedback: feedback.length > 0 ? `Missing: ${feedback.join(", ")}` : "All requirements met!",
+      feedback: feedback.length > 0 
+        ? `Missing: ${feedback.join(", ")}` 
+        : suggestions.length > 0 
+          ? `Suggestion: ${suggestions[0]}` 
+          : "All requirements met!",
     }
   }
 
@@ -199,8 +286,21 @@ export default function SignupScreen() {
     // Email validation (client-side only, no email availability check API call)
     if (!email.trim()) {
       errs.email = "Email is required"
-    } else if (!/^[^@]+@[^@]+\.[^@]+$/.test(email.trim())) {
-      errs.email = "Please enter a valid email address"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      // More specific email validation with better error messages
+      if (email.includes(' ')) {
+        errs.email = "Email cannot contain spaces"
+      } else if (!email.includes('@')) {
+        errs.email = "Email must contain an @ symbol"
+      } else if (email.indexOf('@') === 0) {
+        errs.email = "Email must have a username before the @ symbol"
+      } else if (email.indexOf('@') === email.length - 1) {
+        errs.email = "Email must have a domain after the @ symbol"
+      } else if (!email.substring(email.indexOf('@')).includes('.')) {
+        errs.email = "Email domain must contain a dot (.)"
+      } else {
+        errs.email = "Please enter a valid email address"
+      }
     }
     // Removed specific check for emailAvailable === false as that API call is removed.
     // This will now be handled by backend 409 Conflict if email is duplicate.
@@ -231,41 +331,74 @@ export default function SignupScreen() {
     return Object.keys(errs).length === 0
   }
 
-  // ✅ Enhanced account creation with backend integration - ONLY calling /req/signup
-  const handleCreateAccount = async () => {
-    if (!validate()) return
+  // Debounce function to prevent multiple rapid submissions
+  const debounce = (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  };
 
+  // ✅ Enhanced account creation with backend integration - ONLY calling /req/signup
+  const handleCreateAccount = debounce(async () => {
+    if (!validate()) return
+    
+    // Prevent multiple submissions
+    if (loading) {
+      // Provide feedback when user tries to submit multiple times
+      Alert.alert("Please wait", "Your account is being created...")
+      return
+    }
+    
     setLoading(true)
 
     try {
-      // ✅ Prepare user data for registration
+      // ✅ Prepare user data as JSON object
       const userData = {
-        fullName: fullName.trim(),
+        name: fullName.trim(),
         email: email.trim().toLowerCase(),
+        username: email.trim().toLowerCase(), // Add username field explicitly to match backend expectations
         password: password,
-        profilePhoto: profilePhoto || null, // profilePhoto is prepared but not sent via separate API call
         acceptedTerms: acceptTerms,
-        registrationSource: "mobile_app",
+        registrationSource: 'mobile_app',
         deviceInfo: {
           platform: Platform.OS,
           version: Platform.Version,
-        },
-      }
+        }
+      };
 
-      // ✅ Register user with backend - This is the ONLY API call made here
-      const registrationResponse = await signupApiService.registerUser(userData)
+      // Note: Profile photo upload would need to be handled separately
+      // or through a different endpoint when using JSON content type
+      // For now, we'll focus on fixing the registration issue
 
-      // Removed profile photo upload and email verification calls.
-      // If your backend /req/signup expects profile photo data as part of the initial payload,
-      // it would need to be structured within `userData`. This current code sends `profilePhoto` as a string URL.
+      const registrationResponse = await signupApiService.registerUser(userData);
 
       // ✅ Handle successful registration
       const { user, accessToken, refreshToken, requiresEmailVerification } = registrationResponse
+      
+      // Reset form fields after successful registration
+      setFullName('')
+      setEmail('')
+      setPassword('')
+      setConfirm('')
+      setProfilePhoto(null)
+      setAcceptTerms(false)
+      
+      // Log the response structure to help with debugging
+      console.log("✅ Registration response keys:", Object.keys(registrationResponse))
+      console.log("✅ Access token available:", !!accessToken)
+      console.log("✅ Refresh token available:", !!refreshToken)
+      console.log("✅ User data available:", !!user)
 
       // ✅ Use auth context to complete signup
       const signupData = {
-        fullName: fullName.trim(),
-        email: email.trim(),
+        fullName: fullName.trim(), // Changed from 'name' to 'fullName' to match auth context
+        email: email.trim().toLowerCase(), // Ensure email is lowercase to match registration
         password: password,
         profilePhoto: profilePhoto, // Still passed to auth context if needed internally
         accessToken,
@@ -273,6 +406,7 @@ export default function SignupScreen() {
         user,
       }
 
+      console.log("✅ Passing signup data to auth context with token:", accessToken ? "[TOKEN AVAILABLE]" : "[NO TOKEN]")
       const signupSuccess = await signup(signupData)
 
       setLoading(false)
@@ -311,13 +445,30 @@ export default function SignupScreen() {
       } else {
         throw new Error("Signup failed in auth context")
       }
-    } catch (error) {
+    } catch (error: any) {
       setLoading(false)
+      
+      // Log detailed error information for debugging
+      console.error("❌ Signup error details:")
+      console.error("- Error message:", error.message)
+      console.error("- Status:", error.response?.status)
+      console.error("- Status Text:", error.response?.statusText)
+      console.error("- Response Data:", JSON.stringify(error.response?.data, null, 2))
+      console.error("- Stack:", error.stack)
 
-      // ✅ Handle different error scenarios
+      // ✅ Handle different error scenarios with enhanced backend error detection
       let errorMessage = "Account creation failed. Please try again."
 
-      if (error.response?.status === 400) {
+      // Specifically handle JSON parsing errors
+      if (error.message && error.message.includes('JSON')) {
+        console.error("❌ JSON PARSING ERROR DETECTED:", error.message)
+        console.error("- Original response:", error.response?.data)
+        errorMessage = "There was an error processing the server response. Please try again or contact support."
+      }
+      // Handle enhanced backend configuration errors
+      else if (error.message === 'BACKEND_CONFIGURATION_ERROR') {
+        errorMessage = "Server configuration issue. Our team has been notified. Please try again later or contact support."
+      } else if (error.response?.status === 400) {
         // Validation errors from backend
         const backendErrors = error.response.data?.errors || {}
         if (backendErrors.email) {
@@ -337,23 +488,41 @@ export default function SignupScreen() {
         // Rate limiting
         errorMessage = "Too many registration attempts. Please wait a few minutes and try again."
       } else if (error.response?.status === 403) {
-        // This is the error you are seeing
-        errorMessage = "Access forbidden. This is a server configuration issue (CORS, CSRF, or authorization). Please check your backend logs."
-      }
-      else if (!error.response) {
+        // Enhanced 403 error handling
+        errorMessage = "Server access denied. This appears to be a backend configuration issue. Please contact support or try again later."
+        console.error("🚨 403 FORBIDDEN: Backend server configuration blocking signup requests")
+      } else if (!error.response) {
         // Network error (no response from server)
-        errorMessage = "Network error. Please check your internet connection and try again."
+        if (error.code === 'ECONNABORTED') {
+          errorMessage = "Request timed out. The server is taking too long to respond. Please try again later."
+        } else if (error.message.includes('Network Error')) {
+          errorMessage = "Network error. Please check your internet connection and try again."
+        } else {
+          errorMessage = "Connection error. Please check your internet connection and try again later."
+        }
+        console.error("🌐 Network/Connection Error:", error.code, error.message)
       }
 
       Alert.alert("Registration Failed", errorMessage)
       console.error("Signup error:", error)
     }
-  }
+  }, 500) // 500ms debounce delay
 
-  // ✅ Handle profile photo selection (client-side only, no direct API upload from this screen)
+  // ✅ Handle profile photo selection (client-side only)
   const handlePhotoSelected = (photoUri: string) => {
+    // Store the photo URI locally - we'll handle the actual upload separately
+    // after account creation using a dedicated endpoint that supports multipart/form-data
     setProfilePhoto(photoUri)
     setShowPhotoUpload(false)
+    
+    // Inform user about photo upload limitation
+    if (photoUri) {
+      Alert.alert(
+        "Photo Upload Notice",
+        "Your profile photo will be saved locally but won't be uploaded during registration. You can upload it after creating your account.",
+        [{ text: "OK", style: "default" }]
+      )
+    }
   }
 
   return (
@@ -450,9 +619,14 @@ export default function SignupScreen() {
                 </View>
 
                 {/* Email validation helpers */}
-                {fieldTouched.email && email.length > 0 && !/^[^@]+@[^@]+\.[^@]+$/.test(email) && !errors.email && (
+                {fieldTouched.email && email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !errors.email && (
                   <Text style={[styles.helperText, { color: theme.warning }]}>
-                    Please enter a valid email address (e.g. user@example.com)
+                    {email.includes(' ') ? "Email cannot contain spaces" :
+                     !email.includes('@') ? "Email must contain an @ symbol" :
+                     email.indexOf('@') === 0 ? "Email must have a username before the @ symbol" :
+                     email.indexOf('@') === email.length - 1 ? "Email must have a domain after the @ symbol" :
+                     !email.substring(email.indexOf('@')).includes('.') ? "Email domain must contain a dot (.)" :
+                     "Please enter a valid email address (e.g. user@example.com)"}
                   </Text>
                 )}
                 {/* Removed success/error messages for email availability as the API call is removed */}
@@ -593,7 +767,10 @@ export default function SignupScreen() {
                   disabled={loading || !fullName || !email || !password || !confirm || !acceptTerms}
                 >
                   {loading ? (
-                    <ActivityIndicator color={theme.btnText} />
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color={theme.btnText} size="small" />
+                      <Text style={[styles.loadingText, { color: theme.btnText }]}>Creating account...</Text>
+                    </View>
                   ) : (
                     <Text style={[styles.signUpText, { color: theme.btnText }]}>Create Account</Text>
                   )}
@@ -733,6 +910,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   signUpText: { fontSize: 18, fontWeight: "bold" },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
   bottomRow: {
     flexDirection: "row",
     justifyContent: "center",

@@ -30,7 +30,20 @@ const EditProfileScreen = () => {
 
   const handleSave = async () => {
     if (updateUser) {
-      await updateUser({ fullName, email, phone, profilePhoto });
+      // Update user data with JSON
+      // If profilePhoto is a local URI (starts with 'file://'), it will be handled
+      // separately by the updateUser function using the fileUploadService
+      const result = await updateUser({ 
+        fullName, 
+        email, 
+        phone, 
+        profilePhoto 
+      });
+      
+      if (!result.success) {
+        // Handle error
+        console.error('Failed to update profile:', result.error);
+      }
     }
     router.back();
   };

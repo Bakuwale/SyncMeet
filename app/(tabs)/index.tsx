@@ -35,7 +35,7 @@ const homeApiService = {
       const token = await AsyncStorage.getItem('token')
       const email = await AsyncStorage.getItem('email')
       
-      const response = await axios.post(`${BASE_URL}/api/meetings`, {
+      const response = await axios.post(`${BASE_URL}/req/meetings`, {
         isPersonal,
         videoEnabled: videoOn,
         hostEmail: email,
@@ -55,7 +55,7 @@ const homeApiService = {
   // Validate meeting exists
   validateMeeting: async (meetingId: string) => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/meetings/${meetingId}`)
+      const response = await axios.get(`${BASE_URL}/req/meetings/${meetingId}`)
       return response.data
     } catch (error: any) {
       console.error("❌ Error validating meeting:", error.response?.data || error.message)
@@ -67,7 +67,7 @@ const homeApiService = {
   getRecentMeetings: async () => {
     try {
       const token = await AsyncStorage.getItem('token')
-      const response = await axios.get(`${BASE_URL}/api/meetings/my/recent`, {
+      const response = await axios.get(`${BASE_URL}/req/meetings/my/recent`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }
@@ -83,7 +83,7 @@ const homeApiService = {
   getPersonalMeetingRoom: async () => {
     try {
       const token = await AsyncStorage.getItem('token')
-      const response = await axios.get(`${BASE_URL}/api/meetings/my/personal`, {
+      const response = await axios.get(`${BASE_URL}/req/meetings/my/personal`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }

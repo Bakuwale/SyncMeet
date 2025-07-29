@@ -1,7 +1,10 @@
 package com.example.demo.service;
 
 import java.util.Optional;
+import java.util.UUID;
 
+import com.example.demo.entity.User;
+import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,4 +42,24 @@ public class AuthService {
         }
         return user;
     }
-} 
+    
+    public void sendPasswordResetEmail(String email) {
+        // Check if user exists
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            // Don't reveal that the email doesn't exist (security best practice)
+            return;
+        }
+        
+        // Generate a reset token
+        String resetToken = UUID.randomUUID().toString();
+        
+        // In a real application, you would:
+        // 1. Store the token in the database with an expiration time
+        // 2. Send an email with a link containing the token
+        
+        // For this example, we'll just log that we would send an email
+        System.out.println("Would send password reset email to: " + email);
+        System.out.println("Reset token: " + resetToken);
+    }
+}

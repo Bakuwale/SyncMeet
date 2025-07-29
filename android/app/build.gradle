@@ -87,13 +87,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.frank48.syncmeet"
+    namespace "com.syncmeet"
     defaultConfig {
-        applicationId "com.frank48.syncmeet"
+        applicationId "com.syncmeet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1"
+        versionCode 1
+        versionName "1.0"
     }
     signingConfigs {
         debug {

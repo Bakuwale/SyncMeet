@@ -112,8 +112,12 @@ export default function PhotoUpload({
     }
   };
 
+  // ✅ Save the selected photo
   const handleSave = () => {
     if (selectedPhoto) {
+      // Just pass the URI to the parent component
+      // The actual upload will be handled by fileUploadService
+      // which uses multipart/form-data specifically for file uploads
       onPhotoSelected(selectedPhoto);
       onClose();
     }
@@ -297,4 +301,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-}); 
+});

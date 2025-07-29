@@ -12,6 +12,7 @@ const ForgotPasswordScreen = () => {
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
 
+  // Use the same backend URL as other files
   const BASE_URL = "https://syncmeet-back.onrender.com"
 
   // ✅ API Service for password reset - Now only includes 'sendPasswordResetEmail'
@@ -21,6 +22,10 @@ const ForgotPasswordScreen = () => {
       try {
         const response = await axios.post(`${BASE_URL}/req/forgot-password`, {
           email: email,
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
         })
         return response.data
       } catch (error) {
@@ -63,7 +68,7 @@ const ForgotPasswordScreen = () => {
               setEmail("")
               setEmailTouched(false)
               // Navigate back to login
-              router.push("/login")
+              router.replace("/login")
             },
           },
         ],

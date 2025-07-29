@@ -14,20 +14,31 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  PermissionsAndroid,
 } from "react-native"
 import { Ionicons, MaterialIcons, AntDesign } from "@expo/vector-icons"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import axios from "axios"
+import RtcEngine, {
+  ChannelProfile,
+  ClientRole,
+  RtcLocalView,
+  RtcRemoteView,
+  VideoRenderMode,
+} from 'react-native-agora'
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 const BASE_URL = "https://syncmeet-back.onrender.com"
 
+// Agora App ID - Will be obtained from the backend
+const AGORA_APP_ID = "" // Will be dynamically set when joining a meeting
+
 // ✅ Updated API Service with correct endpoint paths
 const videoCallApiService = {
-  // Join meeting - matches /api/meetings/join/**
+  // Join meeting - matches /req/meetings/join/**
   joinMeeting: async (meetingCode, email) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/meetings/join/${meetingCode}`, {
+      const response = await axios.post(`${BASE_URL}/req/meetings/join/${meetingCode}`, {
         email: email,
       })
       return response.data
@@ -37,10 +48,10 @@ const videoCallApiService = {
     }
   },
 
-  // Leave meeting - matches /api/meetings/**
+  // Leave meeting - matches /req/meetings/**
   leaveMeeting: async (meetingCode, email) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/meetings/leave/${meetingCode}`, {
+      const response = await axios.post(`${BASE_URL}/req/meetings/leave/${meetingCode}`, {
         email: email,
       })
       return response.data
@@ -50,10 +61,10 @@ const videoCallApiService = {
     }
   },
 
-  // Get meeting participants - matches /api/participants/**
+  // Get meeting participants - matches /req/participants/**
   getMeetingParticipants: async (meetingCode) => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/participants/${meetingCode}`)
+      const response = await axios.get(`${BASE_URL}/req/participants/${meetingCode}`)
       return response.data
     } catch (error) {
       console.error("❌ Error fetching participants:", error.response?.data || error.message)
@@ -61,10 +72,10 @@ const videoCallApiService = {
     }
   },
 
-  // Get Agora token - matches /api/agora/token/**
+  // Get Agora token - matches /req/agora/token/**
   getAgoraToken: async (meetingCode, userId) => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/agora/token/${meetingCode}/${userId}`)
+      const response = await axios.get(`${BASE_URL}/req/agora/token/${meetingCode}/${userId}`)
       return response.data
     } catch (error) {
       console.error("❌ Error getting Agora token:", error.response?.data || error.message)
@@ -72,10 +83,10 @@ const videoCallApiService = {
     }
   },
 
-  // Update participant status - matches /api/participants/**
+  // Update participant status - matches /req/participants/**
   updateParticipantStatus: async (meetingCode, email, status) => {
     try {
-      const response = await axios.put(`${BASE_URL}/api/participants/${meetingCode}/status`, {
+      const response = await axios.put(`${BASE_URL}/req/participants/${meetingCode}/status`, {
         email: email,
         isMuted: status.isMuted,
         cameraOn: status.cameraOn,
@@ -87,10 +98,10 @@ const videoCallApiService = {
     }
   },
 
-  // Start/Stop recording - matches /api/meetings/**
+  // Start/Stop recording - matches /req/meetings/**
   toggleRecording: async (meetingCode, action) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/meetings/${meetingCode}/recording`, {
+      const response = await axios.post(`${BASE_URL}/req/meetings/${meetingCode}/recording`, {
         action: action, // 'start' or 'stop'
       })
       return response.data
@@ -100,10 +111,10 @@ const videoCallApiService = {
     }
   },
 
-  // Send chat message - matches /api/meetings/**
+  // Send chat message - matches /req/meetings/**
   sendChatMessage: async (meetingCode, message, sender) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/meetings/${meetingCode}/chat`, {
+      const response = await axios.post(`${BASE_URL}/req/meetings/${meetingCode}/chat`, {
         message,
         sender,
         timestamp: new Date().toISOString(),
@@ -115,10 +126,10 @@ const videoCallApiService = {
     }
   },
 
-  // Send reaction - matches /api/meetings/**
+  // Send reaction - matches /req/meetings/**
   sendReaction: async (meetingCode, reaction, sender) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/meetings/${meetingCode}/reaction`, {
+      const response = await axios.post(`${BASE_URL}/req/meetings/${meetingCode}/reaction`, {
         reaction,
         sender,
         timestamp: new Date().toISOString(),
@@ -187,16 +198,196 @@ export default function VideoCallScreen() {
   const [agoraToken, setAgoraToken] = useState(null)
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  
+  // Agora specific states
+  const [engine, setEngine] = useState(null)
+  const [uid, setUid] = useState(Math.floor(Math.random() * 100000))
+  const [remoteUsers, setRemoteUsers] = useState([])
+  const [joinSucceed, setJoinSucceed] = useState(false)
+  const [permissionsGranted, setPermissionsGranted] = useState(false)
+  
+  // Request camera and microphone permissions
+  const requestPermissions = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const cameraGranted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: "Camera Permission",
+            message: "SyncMeet needs access to your camera to enable video calls.",
+            buttonNeutral: "Ask Me Later",
+            buttonNegative: "Cancel",
+            buttonPositive: "OK"
+          }
+        )
+        
+        const microphoneGranted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: "Microphone Permission",
+            message: "SyncMeet needs access to your microphone to enable audio in calls.",
+            buttonNeutral: "Ask Me Later",
+            buttonNegative: "Cancel",
+            buttonPositive: "OK"
+          }
+        )
+        
+        if (
+          cameraGranted === PermissionsAndroid.RESULTS.GRANTED &&
+          microphoneGranted === PermissionsAndroid.RESULTS.GRANTED
+        ) {
+          setPermissionsGranted(true)
+          return true
+        } else {
+          Alert.alert(
+            "Permissions Required",
+            "Camera and microphone permissions are required for video calls.",
+            [{ text: "OK" }]
+          )
+          return false
+        }
+      } catch (err) {
+        console.warn(err)
+        return false
+      }
+    } else {
+      // iOS permissions are handled by the SDK
+      setPermissionsGranted(true)
+      return true
+    }
+  }
 
   // Refs
   const callTimer = useRef(null)
   const chatScrollRef = useRef(null)
   const wsRef = useRef(null)
 
+  // Initialize Agora engine
+  const initializeAgoraEngine = async () => {
+    try {
+      // Request permissions first
+      const permissionsGranted = await requestPermissions()
+      if (!permissionsGranted) {
+        console.error("Permissions not granted")
+        return false
+      }
+      
+      // Get Agora App ID from backend
+      try {
+        const tokenData = await videoCallApiService.getAgoraToken(meetingId, currentUser.email)
+        // Create RTC engine instance with App ID from token response
+        const rtcEngine = await RtcEngine.create(tokenData.appId || "")
+        setEngine(rtcEngine)
+      } catch (error) {
+        console.error("Failed to get Agora App ID:", error)
+        return false
+      }
+      
+      // Enable video
+      await rtcEngine.enableVideo()
+      
+      // Set channel profile to live broadcasting
+      await rtcEngine.setChannelProfile(ChannelProfile.LiveBroadcasting)
+      
+      // Set client role to broadcaster (all participants can send audio/video)
+      await rtcEngine.setClientRole(ClientRole.Broadcaster)
+      
+      // Register event listeners
+      rtcEngine.addListener('Warning', (warn) => {
+        console.log('Warning', warn)
+      })
+      
+      rtcEngine.addListener('Error', (err) => {
+        console.error('Error', err)
+      })
+      
+      rtcEngine.addListener('UserJoined', (uid, elapsed) => {
+        console.log('UserJoined', uid, elapsed)
+        // Add new user to remote users list
+        setRemoteUsers((previousUsers) => {
+          // Check if user already exists
+          if (previousUsers.indexOf(uid) === -1) {
+            return [...previousUsers, uid]
+          }
+          return previousUsers
+        })
+      })
+      
+      rtcEngine.addListener('UserOffline', (uid, reason) => {
+        console.log('UserOffline', uid, reason)
+        // Remove user from remote users list
+        setRemoteUsers((previousUsers) => 
+          previousUsers.filter((user) => user !== uid)
+        )
+      })
+      
+      rtcEngine.addListener('JoinChannelSuccess', (channel, uid, elapsed) => {
+        console.log('JoinChannelSuccess', channel, uid, elapsed)
+        setJoinSucceed(true)
+      })
+      
+      return true
+    } catch (error) {
+      console.error('Failed to initialize Agora engine', error)
+      return false
+    }
+  }
+  
+  // Join Agora channel
+  const joinAgoraChannel = async (token) => {
+    if (!engine) {
+      console.error('Agora engine not initialized')
+      return false
+    }
+    
+    try {
+      // Join channel with token, channel name (meeting ID), optional info, and UID
+      await engine.joinChannel(token, meetingId, null, uid)
+      return true
+    } catch (error) {
+      console.error('Failed to join Agora channel', error)
+      return false
+    }
+  }
+  
+  // Leave Agora channel
+  const leaveAgoraChannel = async () => {
+    if (!engine) return
+    
+    try {
+      await engine.leaveChannel()
+      setJoinSucceed(false)
+      setRemoteUsers([])
+    } catch (error) {
+      console.error('Failed to leave Agora channel', error)
+    }
+  }
+  
+  // Cleanup Agora engine
+  const destroyAgoraEngine = async () => {
+    if (!engine) return
+    
+    try {
+      await leaveAgoraChannel()
+      await engine.destroy()
+      setEngine(null)
+    } catch (error) {
+      console.error('Failed to destroy Agora engine', error)
+    }
+  }
+  
   // ✅ Auto-join effect when component mounts with pre-filled data
   useEffect(() => {
     if (autoJoin === "true" && meetingId && currentUser.name && skipSettings === "true") {
       handleJoinCall()
+    }
+    
+    // Initialize Agora engine
+    initializeAgoraEngine()
+    
+    // Cleanup on component unmount
+    return () => {
+      destroyAgoraEngine()
     }
   }, [autoJoin, meetingId, currentUser.name, skipSettings])
 
@@ -316,6 +507,60 @@ export default function VideoCallScreen() {
     try {
       const tokenData = await videoCallApiService.getAgoraToken(meetingId, currentUser.email)
       setAgoraToken(tokenData.token)
+      
+      // If we have an App ID in the response, update our engine
+      if (tokenData.appId && !engine) {
+        try {
+          const rtcEngine = await RtcEngine.create(tokenData.appId)
+          setEngine(rtcEngine)
+          
+          // Enable video
+          await rtcEngine.enableVideo()
+          
+          // Set channel profile to live broadcasting
+          await rtcEngine.setChannelProfile(ChannelProfile.LiveBroadcasting)
+          
+          // Set client role to broadcaster (all participants can send audio/video)
+          await rtcEngine.setClientRole(ClientRole.Broadcaster)
+          
+          // Register event listeners
+          rtcEngine.addListener('Warning', (warn) => {
+            console.log('Warning', warn)
+          })
+          
+          rtcEngine.addListener('Error', (err) => {
+            console.error('Error', err)
+          })
+          
+          rtcEngine.addListener('UserJoined', (uid, elapsed) => {
+            console.log('UserJoined', uid, elapsed)
+            // Add new user to remote users list
+            setRemoteUsers((previousUsers) => {
+              // Check if user already exists
+              if (previousUsers.indexOf(uid) === -1) {
+                return [...previousUsers, uid]
+              }
+              return previousUsers
+            })
+          })
+          
+          rtcEngine.addListener('UserOffline', (uid, reason) => {
+            console.log('UserOffline', uid, reason)
+            // Remove user from remote users list
+            setRemoteUsers((previousUsers) => 
+              previousUsers.filter((user) => user !== uid)
+            )
+          })
+          
+          rtcEngine.addListener('JoinChannelSuccess', (channel, uid, elapsed) => {
+            console.log('JoinChannelSuccess', channel, uid, elapsed)
+            setJoinSucceed(true)
+          })
+        } catch (engineError) {
+          console.error('Failed to initialize Agora engine with App ID:', engineError)
+        }
+      }
+      
       return tokenData.token
     } catch (error) {
       console.error("Failed to get Agora token:", error)
@@ -335,11 +580,24 @@ export default function VideoCallScreen() {
     return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
-  // Switch camera (front/back)
-  const switchCamera = () => {
-    const newPosition = cameraPosition === "front" ? "back" : "front"
-    setCameraPosition(newPosition)
-    Alert.alert("Camera Switched", `Switched to ${newPosition} camera`)
+  // Switch camera (front/back) using Agora
+  const switchCamera = async () => {
+    if (!engine || !joinSucceed) {
+      Alert.alert("Not Connected", "You must be in a call to switch camera.")
+      return
+    }
+    
+    try {
+      // Use Agora's switchCamera method
+      await engine.switchCamera()
+      
+      const newPosition = cameraPosition === "front" ? "back" : "front"
+      setCameraPosition(newPosition)
+      Alert.alert("Camera Switched", `Switched to ${newPosition} camera`)
+    } catch (error) {
+      console.error("Failed to switch camera:", error)
+      Alert.alert("Error", "Failed to switch camera. Please try again.")
+    }
   }
 
   // Handle more options menu
@@ -365,7 +623,7 @@ export default function VideoCallScreen() {
     ])
   }
 
-  // ✅ Enhanced join call function with backend integration
+  // ✅ Enhanced join call function with backend integration and Agora
   const handleJoinCall = async () => {
     if (!meetingId.trim()) {
       Alert.alert("Meeting ID Required", "Please enter a meeting ID to join.")
@@ -381,14 +639,31 @@ export default function VideoCallScreen() {
     setConnectionError(null)
 
     try {
+      // Join the meeting via API first
       const joinResponse = await videoCallApiService.joinMeeting(meetingId, currentUser.email)
       console.log("✅ Joined meeting:", joinResponse)
 
+      // Get Agora token - this will also initialize the engine with the App ID if needed
       const token = await getAgoraToken()
       if (!token) {
         throw new Error("Failed to get video call token")
       }
+      
+      // Initialize Agora engine if not already initialized
+      if (!engine) {
+        const initialized = await initializeAgoraEngine()
+        if (!initialized) {
+          throw new Error("Failed to initialize video call engine")
+        }
+      }
+      
+      // Join Agora channel
+      const joinedChannel = await joinAgoraChannel(token)
+      if (!joinedChannel) {
+        throw new Error("Failed to join video channel")
+      }
 
+      // Load participants
       await loadParticipants()
       setInCall(true)
       setIsConnecting(false)
@@ -408,7 +683,7 @@ export default function VideoCallScreen() {
     }
   }
 
-  // ✅ Enhanced leave call function with backend integration
+  // ✅ Enhanced leave call function with backend integration and Agora
   const handleLeaveCall = () => {
     Alert.alert("Leave Meeting", "Are you sure you want to leave this meeting?", [
       { text: "Cancel", style: "cancel" },
@@ -417,12 +692,18 @@ export default function VideoCallScreen() {
         style: "destructive",
         onPress: async () => {
           try {
+            // Leave the Agora channel
+            await leaveAgoraChannel()
+            
+            // Leave the meeting via API
             await videoCallApiService.leaveMeeting(meetingId, currentUser.email)
 
+            // Close WebSocket connection
             if (wsRef.current) {
               wsRef.current.close()
             }
 
+            // Reset all states
             setInCall(false)
             setCallDuration(0)
             setShowParticipants(false)
@@ -431,6 +712,8 @@ export default function VideoCallScreen() {
             setIsScreenSharing(false)
             setParticipants([])
             setChatMessages([])
+            setJoinSucceed(false)
+            setRemoteUsers([])
 
             router.back()
           } catch (error) {
@@ -443,12 +726,21 @@ export default function VideoCallScreen() {
     ])
   }
 
-  // ✅ Enhanced toggle mute with backend integration
+  // ✅ Enhanced toggle mute with backend integration and Agora
   const handleToggleMute = async () => {
+    if (!engine || !joinSucceed) {
+      Alert.alert("Not Connected", "You must be in a call to toggle audio.")
+      return
+    }
+    
     const newMutedState = !isMuted
     setIsMuted(newMutedState)
 
     try {
+      // Update Agora engine audio state
+      await engine.enableLocalAudio(!newMutedState)
+      
+      // Update backend status
       await videoCallApiService.updateParticipantStatus(meetingId, currentUser.email, {
         isMuted: newMutedState,
         cameraOn: cameraOn,
@@ -458,15 +750,31 @@ export default function VideoCallScreen() {
     } catch (error) {
       console.error("Failed to toggle mute:", error)
       setIsMuted(!newMutedState)
+      
+      // Try to revert Agora engine state
+      try {
+        await engine.enableLocalAudio(newMutedState)
+      } catch (e) {
+        console.error("Failed to revert audio state:", e)
+      }
     }
   }
 
-  // ✅ Enhanced toggle camera with backend integration
+  // ✅ Enhanced toggle camera with backend integration and Agora
   const handleToggleCamera = async () => {
+    if (!engine || !joinSucceed) {
+      Alert.alert("Not Connected", "You must be in a call to toggle video.")
+      return
+    }
+    
     const newCameraState = !cameraOn
     setCameraOn(newCameraState)
 
     try {
+      // Update Agora engine video state
+      await engine.enableLocalVideo(newCameraState)
+      
+      // Update backend status
       await videoCallApiService.updateParticipantStatus(meetingId, currentUser.email, {
         isMuted: isMuted,
         cameraOn: newCameraState,
@@ -476,6 +784,13 @@ export default function VideoCallScreen() {
     } catch (error) {
       console.error("Failed to toggle camera:", error)
       setCameraOn(!newCameraState)
+      
+      // Try to revert Agora engine state
+      try {
+        await engine.enableLocalVideo(!newCameraState)
+      } catch (e) {
+        console.error("Failed to revert video state:", e)
+      }
     }
   }
 
@@ -797,41 +1112,49 @@ export default function VideoCallScreen() {
       <View style={styles.videoArea}>
         {/* Main Speaker View */}
         <View style={styles.mainVideoContainer}>
-          {cameraOn ? (
-            <View style={styles.mainVideoPlaceholder}>
-              <Text style={styles.mainVideoText}>Your Video Feed</Text>
-              <Text style={styles.cameraStatusText}>
-                {cameraPosition === "front" ? "Front Camera Active" : "Back Camera Active"}
-              </Text>
-              <Text style={styles.cameraNote}>(Real camera feed will appear here once integrated)</Text>
-            </View>
-          ) : (
-            <View style={styles.videoPlaceholder}>
-              {isScreenSharing ? (
-                <View style={styles.screenShareContainer}>
-                  <MaterialIcons name="screen-share" size={48} color="#00D924" />
-                  <Text style={styles.screenShareText}>Screen Sharing Active</Text>
-                </View>
-              ) : (
-                <>
-                  <View style={styles.avatarContainer}>
-                    <Text style={styles.avatarText}>
-                      {currentUser?.name
-                        ? currentUser.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                        : "You"}
-                    </Text>
+          {joinSucceed ? (
+            cameraOn ? (
+              // Local video stream using Agora RtcLocalView
+              <RtcLocalView.SurfaceView 
+                style={styles.mainVideoStream} 
+                channelId={meetingId}
+                renderMode={VideoRenderMode.Hidden}
+              />
+            ) : (
+              // Camera off - show avatar
+              <View style={styles.videoPlaceholder}>
+                {isScreenSharing ? (
+                  <View style={styles.screenShareContainer}>
+                    <MaterialIcons name="screen-share" size={48} color="#00D924" />
+                    <Text style={styles.screenShareText}>Screen Sharing Active</Text>
                   </View>
-                  <Text style={styles.participantNameMain}>{currentUser?.name || "You"}</Text>
-                  {isMuted && (
-                    <View style={styles.micIndicator}>
-                      <Ionicons name="mic-off" size={16} color="#FF1744" />
+                ) : (
+                  <>
+                    <View style={styles.avatarContainer}>
+                      <Text style={styles.avatarText}>
+                        {currentUser?.name
+                          ? currentUser.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                          : "You"}
+                      </Text>
                     </View>
-                  )}
-                </>
-              )}
+                    <Text style={styles.participantNameMain}>{currentUser?.name || "You"}</Text>
+                    {isMuted && (
+                      <View style={styles.micIndicator}>
+                        <Ionicons name="mic-off" size={16} color="#FF1744" />
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            )
+          ) : (
+            // Not connected to Agora yet
+            <View style={styles.mainVideoPlaceholder}>
+              <Text style={styles.mainVideoText}>Waiting to connect...</Text>
+              <Text style={styles.cameraNote}>(Video will appear when connected)</Text>
             </View>
           )}
 
@@ -854,36 +1177,72 @@ export default function VideoCallScreen() {
           </View>
         </View>
 
-        {/* Thumbnail Videos */}
-        {participants.length > 0 && (
+        {/* Thumbnail Videos - Remote Participants */}
+        {(participants.length > 0 || remoteUsers.length > 0) && (
           <ScrollView horizontal style={styles.thumbnailContainer} showsHorizontalScrollIndicator={false}>
-            {participants.map((participant) => (
-              <View key={participant.id || participant.email} style={styles.thumbnailVideo}>
-                <View style={styles.thumbnailAvatar}>
-                  <Text style={styles.thumbnailAvatarText}>
-                    {participant.name
-                      ? participant.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                      : "U"}
-                  </Text>
-                </View>
-                <Text style={styles.thumbnailName} numberOfLines={1}>
-                  {participant.name || "Unknown"}
-                </Text>
-                {participant.isMuted && (
-                  <View style={styles.thumbnailMicOff}>
-                    <Ionicons name="mic-off" size={12} color="#FF1744" />
-                  </View>
-                )}
-                {participant.isHost && (
-                  <View style={styles.hostBadge}>
-                    <Text style={styles.hostBadgeText}>Host</Text>
-                  </View>
+            {/* Agora Remote Users */}
+            {joinSucceed && remoteUsers.map((uid) => (
+              <View key={`agora-${uid}`} style={styles.thumbnailVideo}>
+                {/* Remote video stream */}
+                <RtcRemoteView.SurfaceView
+                  style={styles.thumbnailVideoStream}
+                  uid={uid}
+                  channelId={meetingId}
+                  renderMode={VideoRenderMode.Hidden}
+                  zOrderMediaOverlay={true}
+                />
+                
+                {/* Find matching participant info if available */}
+                {participants.find(p => p.uid === uid) && (
+                  <>
+                    <Text style={styles.thumbnailName} numberOfLines={1}>
+                      {participants.find(p => p.uid === uid)?.name || "Unknown"}
+                    </Text>
+                    {participants.find(p => p.uid === uid)?.isMuted && (
+                      <View style={styles.thumbnailMicOff}>
+                        <Ionicons name="mic-off" size={12} color="#FF1744" />
+                      </View>
+                    )}
+                    {participants.find(p => p.uid === uid)?.isHost && (
+                      <View style={styles.hostBadge}>
+                        <Text style={styles.hostBadgeText}>Host</Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             ))}
+            
+            {/* Participants without video streams yet */}
+            {participants
+              .filter(participant => !remoteUsers.includes(participant.uid))
+              .map((participant) => (
+                <View key={participant.id || participant.email} style={styles.thumbnailVideo}>
+                  <View style={styles.thumbnailAvatar}>
+                    <Text style={styles.thumbnailAvatarText}>
+                      {participant.name
+                        ? participant.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                        : "U"}
+                    </Text>
+                  </View>
+                  <Text style={styles.thumbnailName} numberOfLines={1}>
+                    {participant.name || "Unknown"}
+                  </Text>
+                  {participant.isMuted && (
+                    <View style={styles.thumbnailMicOff}>
+                      <Ionicons name="mic-off" size={12} color="#FF1744" />
+                    </View>
+                  )}
+                  {participant.isHost && (
+                    <View style={styles.hostBadge}>
+                      <Text style={styles.hostBadgeText}>Host</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
           </ScrollView>
         )}
       </View>
@@ -1392,6 +1751,10 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative",
   },
+  mainVideoStream: {
+    flex: 1,
+    backgroundColor: "#1a1a1a",
+  },
   mainVideoPlaceholder: {
     flex: 1,
     backgroundColor: "#1a1a1a",
@@ -1495,6 +1858,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
+    overflow: "hidden",
+  },
+  remoteVideoStream: {
+    width: 80,
+    height: 100,
+    borderRadius: 8,
+  },
+  thumbnailVideoStream: {
+    width: 80,
+    height: 100,
+    borderRadius: 8,
   },
   thumbnailAvatar: {
     width: 32,

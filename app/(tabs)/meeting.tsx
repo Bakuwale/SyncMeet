@@ -27,7 +27,7 @@ const apiService = {
   // Get user's meetings
   getMyMeetings: async (token) => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/meetings/my`, {
+      const response = await axios.get(`${BASE_URL}/req/meetings/my`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       return response.data
@@ -40,7 +40,7 @@ const apiService = {
   // Schedule a new meeting
   scheduleMeeting: async (meetingData, token) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/meetings/schedule`, meetingData, {
+      const response = await axios.post(`${BASE_URL}/req/meetings/schedule`, meetingData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -56,7 +56,7 @@ const apiService = {
   // Join meeting by code with email
   joinMeetingByCode: async (meetingCode, email) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/meetings/join/${meetingCode}`, {
+      const response = await axios.post(`${BASE_URL}/req/meetings/join/${meetingCode}`, {
         email: email,
       })
       return response.data
@@ -69,7 +69,7 @@ const apiService = {
   // Get meeting details by code
   getMeetingByCode: async (meetingCode) => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/meetings/code/${meetingCode}`)
+      const response = await axios.get(`${BASE_URL}/req/meetings/code/${meetingCode}`)
       return response.data
     } catch (error) {
       console.error("❌ Error getting meeting:", error.response?.data || error.message)
@@ -80,7 +80,7 @@ const apiService = {
   // Delete meeting
   deleteMeeting: async (meetingId, token) => {
     try {
-      const response = await axios.delete(`${BASE_URL}/api/meetings/${meetingId}`, {
+      const response = await axios.delete(`${BASE_URL}/req/meetings/${meetingId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       return response.data
@@ -320,41 +320,9 @@ export default function MeetingsTab() {
           ))}
         </View>
 
-        {/* Start Meeting Button */}
-        <TouchableOpacity
-          style={{
-            backgroundColor: themeColors.accent,
-            padding: 12,
-            borderRadius: 8,
-            marginBottom: 16,
-            alignItems: "center",
-            opacity: isLoading ? 0.6 : 1,
-          }}
-          onPress={handleStartMeeting}
-          disabled={isLoading}
-        >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>
-            {isLoading ? "Starting Meeting..." : "Start a Meeting"}
-          </Text>
-        </TouchableOpacity>
 
-        {/* Refresh Button */}
-        <TouchableOpacity
-          style={{
-            backgroundColor: themeColors.filterBackground,
-            padding: 8,
-            borderRadius: 6,
-            marginBottom: 16,
-            alignItems: "center",
-            opacity: isRefreshing ? 0.6 : 1,
-          }}
-          onPress={loadMeetings}
-          disabled={isRefreshing}
-        >
-          <Text style={{ color: themeColors.textPrimary, fontSize: 12 }}>
-            {isRefreshing ? "Refreshing..." : "Refresh Meetings"}
-          </Text>
-        </TouchableOpacity>
+
+
 
         {/* Meetings List */}
         <FlatList
@@ -543,7 +511,19 @@ function MeetingCard({ meeting, themeColors, onJoin, onDelete }) {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={[styles.deleteBtn, { marginLeft: 8 }]} onPress={onDelete}>
+          <TouchableOpacity 
+            style={[styles.deleteBtn, { marginLeft: 8 }]} 
+            onPress={() => {
+              Alert.alert(
+                "Delete Meeting", 
+                "Are you sure you want to delete this meeting?", 
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Delete", style: "destructive", onPress: onDelete }
+                ]
+              );
+            }}
+          >
             <Ionicons name="trash-outline" size={16} color="#ff3b30" />
           </TouchableOpacity>
         </View>

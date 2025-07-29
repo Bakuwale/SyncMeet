@@ -258,23 +258,26 @@ export default function LoginScreen() {
       // No getUserProfile or refreshToken or verifyEmail call, as per request.
       let userProfile = user || { email: email.trim() }; // Fallback user data
 
-      // ✅ Store authentication data (using your auth context)
-      const authData = {
+      // ✅ Pass extracted data directly to auth context without creating intermediate object
+      // This avoids any potential re-parsing of JSON
+      console.log("💾 Passing auth data to context:", {
         email: email.trim(),
-        password: password, // Note: In production, don't store passwords
-        accessToken,
-        refreshToken, // Even if not used for refresh, store if backend sends it.
-        user: userProfile,
-        expiresIn,
-      }
-
-      console.log("💾 Storing auth data:", {
-        ...authData,
         password: '[REDACTED]',
-        accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : 'null'
+        accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
+        refreshToken: refreshToken ? 'present' : 'not present',
+        user: userProfile ? 'present' : 'not present',
+        expiresIn: expiresIn || 'not specified'
       })
 
-      const loginSuccess = await authLogin(authData)
+      // Pass the extracted values directly to avoid any re-parsing
+      const loginSuccess = await authLogin({
+        email: email.trim(),
+        password: password,
+        accessToken,
+        refreshToken,
+        user: userProfile,
+        expiresIn
+      })
 
       setLoading(false)
 

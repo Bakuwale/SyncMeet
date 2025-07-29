@@ -20,7 +20,7 @@ export async function signUpWithEmail(email, password, fullName) {
   const res = await fetch(`${API_URL}/req/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: email, email, password }),
+    body: JSON.stringify({ username: email, email, name: fullName, password }),
   });
   if (!res.ok) throw new Error('Signup failed');
   const result = await res.json();
@@ -54,7 +54,9 @@ export async function authFetch(url, options = {}) {
     ...options,
     headers: {
       ...(options.headers || {}),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
       Authorization: token ? `Bearer ${token}` : '',
     },
   });
-} 
+}

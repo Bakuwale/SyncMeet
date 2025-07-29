@@ -46,6 +46,13 @@
             "./assets/sounds/notification.wav"
           ]
         }
+      ],
+      [
+        "react-native-agora/expo-plugin",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
+        }
       ]
     ],
     "experiments": {
