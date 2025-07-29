@@ -66,8 +66,7 @@
     "react-native-uuid": "^2.0.3",
     "react-native-vision-camera": "^4.7.1",
     "react-native-web": "~0.20.0",
-    "react-native-webview": "13.13.5",
-    "undefined": "react-native-agora/expo-plugin"
+    "react-native-webview": "13.13.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
