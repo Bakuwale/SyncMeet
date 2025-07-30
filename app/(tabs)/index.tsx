@@ -121,6 +121,7 @@ export default function HomeScreen() {
   const [creatingRoom, setCreatingRoom] = useState(false)
   const [loadingRecentMeetings, setLoadingRecentMeetings] = useState(false)
   const [validatingMeeting, setValidatingMeeting] = useState(false)
+  const [generatingPMI, setGeneratingPMI] = useState(false)
 
   // ✅ Load data on component mount
   useEffect(() => {
@@ -149,6 +150,58 @@ export default function HomeScreen() {
       setLoadingRecentMeetings(false)
     }
   }
+
+  // ✅ Generate new personal meeting ID
+  const generateNewPersonalMeetingId = async () => {
+    try {
+      setGeneratingPMI(true)
+      
+      const response = await fetch('https://syncmeet-back.onrender.com/api/meetings/schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: 'Personal Meeting Room',
+          description: 'Your personal meeting room',
+          startTime: new Date().toISOString(),
+          endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+          duration: 60,
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Generated PMI Response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to generate personal meeting ID');
+      }
+
+      // Extract meeting ID/code
+      const meetingId = data.id || data.data?.id || data.meetingId || data.meetingCode || data.code;
+      if (!meetingId) {
+        throw new Error('No meeting ID received from server');
+      }
+
+      setPersonalMeetingId(meetingId);
+      console.log('New Personal Meeting ID generated:', meetingId);
+      
+      Alert.alert(
+        'Success',
+        `New Personal Meeting ID generated: ${meetingId}`,
+        [{ text: 'OK' }]
+      );
+      
+    } catch (error) {
+      console.error('❌ Error generating personal meeting ID:', error);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to generate personal meeting ID'
+      );
+    } finally {
+      setGeneratingPMI(false);
+    }
+  };
 
   const [editRequirePasscode, setEditRequirePasscode] = useState(true)
   const [editPasscode, setEditPasscode] = useState("YyXSh4")
@@ -192,7 +245,13 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={[styles.header, { color: themeColors.textPrimary }]}>Meetings</Text>
-        <Pressable onPress={() => setInfoModalVisible(true)}>
+        <Pressable onPress={() => {
+          setInfoModalVisible(true);
+          // Generate new PMI when info modal is opened
+          if (!personalMeetingId || personalMeetingId === "Loading...") {
+            generateNewPersonalMeetingId();
+          }
+        }}>
           <Ionicons name="information-circle-outline" size={24} color={themeColors.textPrimary} />
         </Pressable>
       </View>
@@ -289,8 +348,44 @@ export default function HomeScreen() {
               try {
                 setCreatingRoom(true)
                 
-                // ✅ Create meeting via backend API
-                const meetingData = await homeApiService.createMeeting(usePMI, videoOn)
+                let meetingIdToUse = personalMeetingId;
+                
+                // If using PMI and we have a personal meeting ID, use it
+                if (usePMI && personalMeetingId && personalMeetingId !== "Loading...") {
+                  meetingIdToUse = personalMeetingId;
+                } else {
+                  // Generate a new personal meeting ID if needed
+                  const response = await fetch('https://syncmeet-back.onrender.com/api/meetings/schedule', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      title: 'Personal Meeting Room',
+                      description: 'Your personal meeting room',
+                      startTime: new Date().toISOString(),
+                      endTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+                      duration: 60,
+                    }),
+                  });
+
+                  const data = await response.json();
+                  console.log('Generated PMI Response:', data);
+
+                  if (!response.ok) {
+                    throw new Error(data.message || 'Failed to generate personal meeting ID');
+                  }
+
+                  // Extract meeting ID/code
+                  const meetingId = data.id || data.data?.id || data.meetingId || data.meetingCode || data.code;
+                  if (!meetingId) {
+                    throw new Error('No meeting ID received from server');
+                  }
+
+                  meetingIdToUse = meetingId;
+                  setPersonalMeetingId(meetingId);
+                  console.log('New Personal Meeting ID generated:', meetingId);
+                }
                 
                 setMeetModalVisible(false)
                 setCreatingRoom(false)
@@ -298,11 +393,12 @@ export default function HomeScreen() {
                 router.push({
                   pathname: "/video-call",
                   params: {
-                    meetingId: meetingData.meetingId || meetingData.id,
+                    meetingId: meetingIdToUse,
                     userName: "Host",
                     videoOn: videoOn ? "true" : "false",
                     usePMI: usePMI ? "true" : "false",
                     isHost: "true",
+                    isPersonalMeeting: "true",
                   },
                 })
               } catch (error: any) {
@@ -681,7 +777,9 @@ export default function HomeScreen() {
                 ]}
               >
                 <Text style={[styles.infoModalLabel, { color: themeColors.popupSecondary }]}>Personal meeting ID</Text>
-                <Text style={[styles.infoModalId, { color: themeColors.popupText }]}>{personalMeetingId || "Loading..."}</Text>
+                <Text style={[styles.infoModalId, { color: themeColors.popupText }]}>
+                  {generatingPMI ? "Generating..." : personalMeetingId || "Loading..."}
+                </Text>
                 <View style={{ flex: 1, width: "100%", justifyContent: "flex-start" }}>
                   <View style={[styles.infoModalActions, { backgroundColor: themeColors.cardBackground }]}>
                     <Pressable style={styles.infoModalActionRow}>
@@ -693,6 +791,16 @@ export default function HomeScreen() {
                         Send invitation
                       </Text>
                       <MaterialIcons name="share" size={22} color={themeColors.popupText} />
+                    </Pressable>
+                    <Pressable
+                      style={styles.infoModalActionRow}
+                      onPress={generateNewPersonalMeetingId}
+                      disabled={generatingPMI}
+                    >
+                      <Text style={[styles.infoModalActionText, { color: themeColors.popupText }]}>
+                        {generatingPMI ? "Generating..." : "Generate new ID"}
+                      </Text>
+                      <Ionicons name="refresh" size={20} color={themeColors.popupText} />
                     </Pressable>
                     <Pressable
                       style={styles.infoModalActionRow}

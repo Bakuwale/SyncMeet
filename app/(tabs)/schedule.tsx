@@ -72,6 +72,13 @@ export default function ScheduleMeetingScreen() {
     }
   };
 
+
+
+
+
+
+
+  
   const handleSubmit = async () => {
     if (!title || !duration) {
       Alert.alert('Error', 'Please fill in the meeting title and duration.');
