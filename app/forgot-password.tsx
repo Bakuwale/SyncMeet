@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { View, Text, TextInput, StyleSheet, Alert, ActivityIndicator } from "react-native"
-import { useRouter } from "expo-router"
-import { TouchableOpacity } from "react-native-gesture-handler"
 import axios from "axios"
+import { useRouter } from "expo-router"
+import { useState } from "react"
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from "react-native"
+import { TouchableOpacity } from "react-native-gesture-handler"
 
 const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState("")

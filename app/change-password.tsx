@@ -3,10 +3,12 @@
 "use client"
 
 import { Ionicons } from "@expo/vector-icons"
+import axios from "axios"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   KeyboardAvoidingView,
@@ -18,10 +20,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native"
 import { useThemeContext } from "../components/ThemeContext"
-import axios from "axios"
 
 const BASE_URL = "https://syncmeet-back.onrender.com"
 

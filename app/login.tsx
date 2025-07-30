@@ -4,23 +4,23 @@ import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
-  ActivityIndicator,
-  Animated,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-  Alert,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native"
 import { useAuth } from "../components/auth-context"
-import axios from "axios"
+import { api } from '../utils/api'
 
 const BASE_URL = "https://syncmeet-back.onrender.com"
 
@@ -29,49 +29,9 @@ const authApiService = {
   // User login endpoint. Only this endpoint call is retained.
   login: async (email, password) => {
     try {
-      console.log("🔄 Attempting login with:", { email, baseUrl: BASE_URL })
-
-      const response = await axios.post(`${BASE_URL}/req/login`, {
-        email: email,
-        password: password,
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          // 'Origin' header is typically handled by the browser/runtime and not explicitly set in React Native Axios.
-          // 'X-Requested-With': 'XMLHttpRequest', // Often automatically sent by Axios
-        },
-        timeout: 15000, // 15 second timeout for slow servers
-        withCredentials: false, // Ensure this matches your backend's cookie/session strategy
-      })
-
-      console.log("✅ Login response status:", response.status)
-      console.log("✅ Login response headers:", response.headers)
-      console.log("✅ Login response data:", JSON.stringify(response.data, null, 2))
-
-      return response.data
+      const response = await api.login({ username: email, password })
+      return response.data || response
     } catch (error) {
-      console.error("❌ Login request failed:")
-      console.error("- Status:", error.response?.status)
-      console.error("- Status Text:", error.response?.statusText)
-      console.error("- Response Headers:", error.response?.headers)
-      console.error("- Response Data:", JSON.stringify(error.response?.data, null, 2))
-      console.error("- Request URL:", error.config?.url)
-      console.error("- Request Headers:", error.config?.headers)
-      console.error("- Error Message:", error.message)
-      console.error("- Error Code:", error.code)
-
-      if (error.response?.status === 403) {
-        console.error("🚫 403 Forbidden Error Details:")
-        console.error("- This usually indicates CORS issues or server-side authorization middleware blocking the request.")
-        console.error("- Server response body:", error.response?.data)
-        console.error("- Check if your backend allows requests from your domain and for this /req/login endpoint.")
-      }
-
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Request timeout - server is taking too long to respond')
-      }
-
       throw error
     }
   },
@@ -86,14 +46,14 @@ export default function LoginScreen() {
   const { login: authLogin } = useAuth()
 
   // Form states
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   // Validation states
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
-  const [emailTouched, setEmailTouched] = useState(false)
+  const [errors, setErrors] = useState<{ username?: string; password?: string }>({})
+  const [usernameTouched, setUsernameTouched] = useState(false)
   const [passwordTouched, setPasswordTouched] = useState(false)
 
   // UI states related to login attempts are now restored
@@ -148,13 +108,13 @@ export default function LoginScreen() {
 
   // ✅ Validation with better error messages (client-side only)
   const validate = () => {
-    const errs: { email?: string; password?: string } = {}
+    const errs: { username?: string; password?: string } = {}
 
-    // Email validation
-    if (!email.trim()) {
-      errs.email = "Email is required"
-    } else if (!/^[^@]+@[^@]+\.[^@]+$/.test(email.trim())) {
-      errs.email = "Please enter a valid email address"
+    // Username validation - allow spaces for full names
+    if (!username.trim()) {
+      errs.username = "Username is required"
+    } else if (!/^[a-zA-Z0-9_\s]+$/.test(username.trim())) {
+      errs.username = "Username can only contain letters, numbers, underscores, and spaces"
     }
 
     // Password validation
@@ -186,14 +146,10 @@ export default function LoginScreen() {
     setErrors({}) // Clear previous errors
 
     try {
-      console.log("🚀 Starting login process...")
+      // Call backend login API
+      const loginResponse = await authApiService.login(username.trim(), password)
 
-      // ✅ Call backend login API
-      const loginResponse = await authApiService.login(email.trim(), password)
-
-      console.log("📦 Raw login response:", loginResponse)
-
-      // ✅ FLEXIBLE token extraction - handle different response structures
+      // FLEXIBLE token extraction - handle different response structures
       let accessToken, refreshToken, user, expiresIn
 
       // Common response structures from Spring Boot backends:
@@ -226,18 +182,8 @@ export default function LoginScreen() {
         expiresIn = loginResponse.expiresIn
       }
 
-      console.log("🔍 Extracted tokens:", {
-        accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
-        refreshToken: refreshToken ? `${refreshToken.substring(0, 20)}...` : 'null',
-        user: user,
-        expiresIn: expiresIn
-      })
-
-      // ✅ Check if we got an access token
+      // Check if we got an access token
       if (!accessToken) {
-        console.error("❌ No access token found in response structure:")
-        console.error("Available keys:", Object.keys(loginResponse))
-
         const possibleTokenKeys = Object.keys(loginResponse).filter(key =>
           key.toLowerCase().includes('token') ||
           key.toLowerCase().includes('access') ||
@@ -245,7 +191,6 @@ export default function LoginScreen() {
         )
 
         if (possibleTokenKeys.length > 0) {
-          console.log("🔍 Possible token keys found:", possibleTokenKeys)
           Alert.alert(
             "Debug Info",
             `No standard token found. Available keys: ${Object.keys(loginResponse).join(', ')}\n\nPossible tokens: ${possibleTokenKeys.join(', ')}`
@@ -256,22 +201,12 @@ export default function LoginScreen() {
       }
 
       // No getUserProfile or refreshToken or verifyEmail call, as per request.
-      let userProfile = user || { email: email.trim() }; // Fallback user data
+      let userProfile = user || { email: username.trim() }; // Fallback user data
 
-      // ✅ Pass extracted data directly to auth context without creating intermediate object
+      // Pass extracted data directly to auth context without creating intermediate object
       // This avoids any potential re-parsing of JSON
-      console.log("💾 Passing auth data to context:", {
-        email: email.trim(),
-        password: '[REDACTED]',
-        accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
-        refreshToken: refreshToken ? 'present' : 'not present',
-        user: userProfile ? 'present' : 'not present',
-        expiresIn: expiresIn || 'not specified'
-      })
-
-      // Pass the extracted values directly to avoid any re-parsing
       const loginSuccess = await authLogin({
-        email: email.trim(),
+        email: username.trim(),
         password: password,
         accessToken,
         refreshToken,
@@ -282,27 +217,19 @@ export default function LoginScreen() {
       setLoading(false)
 
       if (loginSuccess) {
-        // Reset login attempts on successful login - Restored
+        // Reset login attempts on successful login
         setLoginAttempts(0)
         setIsBlocked(false)
 
-        console.log("🎉 Login successful, navigating to main app...")
-
-        // ✅ Navigate to main app
+        // Navigate to main app immediately
         router.replace("/(tabs)")
-
-        // Show welcome message
-        const userName = userProfile?.name || userProfile?.firstName || userProfile?.email || "User"
-        Alert.alert("Welcome Back!", `Hello ${userName}!`)
       } else {
         throw new Error("Authentication context rejected the login data")
       }
     } catch (error) {
       setLoading(false)
 
-      console.error("🚨 Login process failed:", error)
-
-      // ✅ Handle different error scenarios with better messaging
+      // Handle different error scenarios with better messaging
       let errorMessage = "Login failed. Please try again."
 
       if (error.message && error.message.includes("No access token received")) {
@@ -311,7 +238,7 @@ export default function LoginScreen() {
       } else if (error.response?.status === 401) {
         // Invalid credentials
         errorMessage = "Invalid email or password. Please check your credentials and try again."
-        setErrors({ email: "Invalid credentials" })
+        setErrors({ username: "Invalid credentials" })
 
         // ✅ Implement login attempt tracking - Restored
         const newAttempts = loginAttempts + 1
@@ -365,11 +292,11 @@ export default function LoginScreen() {
 
   // ✅ Handle forgot password - Restored navigation
   const handleForgotPassword = () => {
-    if (email.trim() && /^[^@]+@[^@]+\.[^@]+$/.test(email.trim())) {
+    if (username.trim() && /^[a-zA-Z0-9_\s]+$/.test(username.trim())) {
       // Pre-fill email in forgot password screen
       router.push({
         pathname: "/forgot-password",
-        params: { email: email.trim() },
+        params: { email: username.trim() },
       })
     } else {
       router.push("/forgot-password")
@@ -412,41 +339,41 @@ export default function LoginScreen() {
                   </View>
                 )}
 
-                {/* Email Input */}
+                {/* Username Input */}
                 <View
                   style={[
                     styles.inputRow,
                     {
-                      borderColor: errors.email || (emailTouched && !email.trim()) ? theme.error : theme.divider,
+                      borderColor: errors.username || (usernameTouched && !username.trim()) ? theme.error : theme.divider,
                     },
                   ]}
                 >
-                  <Ionicons name="mail-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
+                  <Ionicons name="person-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText }]}
-                    placeholder="Email address"
+                    placeholder="Full name or username"
                     placeholderTextColor={theme.placeholder}
-                    value={email}
+                    value={username}
                     onChangeText={(text) => {
-                      setEmail(text)
-                      setEmailTouched(true)
-                      if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }))
+                      setUsername(text)
+                      setUsernameTouched(true)
+                      if (errors.username) setErrors((prev) => ({ ...prev, username: undefined }))
                     }}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    onBlur={() => setEmailTouched(true)}
+                    autoCapitalize="words"
+                    keyboardType="default"
+                    onBlur={() => setUsernameTouched(true)}
                     editable={!isBlocked} // Restored
                     returnKeyType="next"
                   />
                 </View>
 
-                {/* Email validation helper */}
-                {emailTouched && email.length > 0 && !/^[^@]+@[^@]+\.[^@]+$/.test(email.trim()) && !errors.email && (
+                {/* Username validation helper */}
+                {usernameTouched && username.length > 0 && !/^[a-zA-Z0-9_\s]+$/.test(username.trim()) && !errors.username && (
                   <Text style={[styles.helperText, { color: theme.warning }]}>
-                    Please enter a valid email address (e.g. user@example.com)
+                    Username can only contain letters, numbers, underscores, and spaces
                   </Text>
                 )}
-                {errors?.email && <Text style={[styles.errorText, { color: theme.error }]}>{errors.email}</Text>}
+                {errors?.username && <Text style={[styles.errorText, { color: theme.error }]}>{errors.username}</Text>}
 
                 {/* Password Input */}
                 <View
@@ -498,11 +425,11 @@ export default function LoginScreen() {
                     styles.signInBtn,
                     {
                       backgroundColor: theme.btn,
-                      opacity: loading || isBlocked || !email || !password ? 0.6 : 1, // Restored isBlocked
+                      opacity: loading || isBlocked || !username || !password ? 0.6 : 1, // Restored isBlocked
                     },
                   ]}
                   onPress={handleSignIn}
-                  disabled={loading || isBlocked || !email || !password} // Restored isBlocked
+                  disabled={loading || isBlocked || !username || !password} // Restored isBlocked
                 >
                   {loading ? (
                     <ActivityIndicator color={theme.btnText} />

@@ -23,6 +23,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "expo": "^53.0.19",
+    "expo-agora": "^3.7.4-UNOFFICIAL",
     "expo-apple-authentication": "^7.2.4",
     "expo-auth-session": "^6.2.1",
     "expo-av": "^15.1.7",

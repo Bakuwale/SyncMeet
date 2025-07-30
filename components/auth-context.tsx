@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 export type User = {
   email: string;
@@ -41,7 +41,11 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function useAuth() {
-  return useContext(AuthContext)!;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
 
 const API_URL = 'https://syncmeet-back.onrender.com';
@@ -66,39 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signup = async (data: { fullName: string; email: string; password: string; profilePhoto?: string | null; accessToken?: string; refreshToken?: string; user?: any }) => {
     try {
-      // If we already have tokens from the API service, use them directly
-      if (data.accessToken) {
-        // Store both access token and refresh token if available
-        await AsyncStorage.setItem('token', data.accessToken);
-        if (data.refreshToken) {
-          await AsyncStorage.setItem('refreshToken', data.refreshToken);
-        }
-        
-        await AsyncStorage.setItem('email', data.email);
-        await AsyncStorage.setItem('fullName', data.fullName || '');
-        await AsyncStorage.setItem('profilePhoto', data.profilePhoto || '');
-        
-        // Store additional user data if available
-        if (data.user) {
-          if (data.user.phone) {
-            await AsyncStorage.setItem('phone', data.user.phone);
-          }
-          // Store any other user data as needed
-        }
-        
-        // Set user state with the access token
-        setUser({ 
-          email: data.email, 
-          token: data.accessToken, 
-          fullName: data.fullName, 
-          profilePhoto: data.profilePhoto,
-          phone: data.user?.phone
-        });
-        return true;
-      }
-      
-      // Otherwise make the API call
-      // Use a timeout promise to handle network timeouts
+      // Make the API call to signup
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Signup request timeout')), 30000);
       });
@@ -107,16 +79,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: data.email, // backend expects username
-          email: data.email,
-          name: data.fullName, // backend expects name
+          username: data.fullName, // backend expects username
+          email: data.email, // backend expects email
           password: data.password,
         }),
       });
       
       // Race the fetch against the timeout
       const res = await Promise.race([fetchPromise, timeoutPromise]) as Response;
-      if (!res.ok) throw new Error('Signup failed');
+      if (!res.ok) {
+        let errorMsg = 'Signup failed';
+        try {
+          const err = await res.json();
+          if (err && err.message) errorMsg = err.message;
+        } catch {}
+        throw new Error(errorMsg);
+      }
       const result = await res.json();
       
       // Prioritize accessToken or fall back to token
@@ -129,13 +107,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await AsyncStorage.setItem('refreshToken', result.refreshToken);
       }
       
+      // Store user data
       await AsyncStorage.setItem('email', data.email);
       await AsyncStorage.setItem('fullName', data.fullName || '');
       await AsyncStorage.setItem('profilePhoto', data.profilePhoto || '');
       
-      setUser({ email: data.email, token: token, fullName: data.fullName, profilePhoto: data.profilePhoto });
+      // Set user state - this is crucial for navigation to work
+      const userData = { 
+        email: data.email, 
+        token: token, 
+        fullName: data.fullName, 
+        profilePhoto: data.profilePhoto,
+        phone: result.user?.phone
+      };
+      
+      setUser(userData);
       return true;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return false;
     }
@@ -211,7 +198,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Race the fetch against the timeout
       const res = await Promise.race([fetchPromise, timeoutPromise]) as Response;
-      if (!res.ok) throw new Error('Login failed');
+      if (!res.ok) {
+        let errorMsg = 'Login failed';
+        try {
+          const err = await res.json();
+          if (err && err.message) errorMsg = err.message;
+        } catch {}
+        throw new Error(errorMsg);
+      }
       const result = await res.json();
       
       // Prioritize accessToken or fall back to token

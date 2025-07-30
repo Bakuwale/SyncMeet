@@ -7,9 +7,16 @@ export async function signInWithEmail(email, password) {
   const res = await fetch(`${API_URL}/req/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: email, password }),
+    body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error('Login failed');
+  if (!res.ok) {
+    let errorMsg = 'Login failed';
+    try {
+      const err = await res.json();
+      if (err && err.message) errorMsg = err.message;
+    } catch {}
+    throw new Error(errorMsg);
+  }
   const result = await res.json();
   await AsyncStorage.setItem('token', result.token);
   await AsyncStorage.setItem('email', email);
@@ -20,9 +27,16 @@ export async function signUpWithEmail(email, password, fullName) {
   const res = await fetch(`${API_URL}/req/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: email, email, name: fullName, password }),
+    body: JSON.stringify({ email, name: fullName, password }),
   });
-  if (!res.ok) throw new Error('Signup failed');
+  if (!res.ok) {
+    let errorMsg = 'Signup failed';
+    try {
+      const err = await res.json();
+      if (err && err.message) errorMsg = err.message;
+    } catch {}
+    throw new Error(errorMsg);
+  }
   const result = await res.json();
   await AsyncStorage.setItem('token', result.token);
   await AsyncStorage.setItem('email', email);

@@ -1,9 +1,11 @@
 "use client"
 
 import { FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import axios from "axios"
 import { useRouter } from "expo-router"
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
   Alert,
   Dimensions,
@@ -22,8 +24,6 @@ import {
   View,
 } from "react-native"
 import { useThemeContext } from "../../components/ThemeContext"
-import axios from "axios"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const BASE_URL = "https://syncmeet-back.onrender.com"
 

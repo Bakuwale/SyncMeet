@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import React from 'react';
 import { useThemeContext } from '../../components/ThemeContext';
 
 export default function TabLayout() {
@@ -40,11 +39,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="meeting"
+        name="meeting-schedule"
         options={{
-          title: 'Meeting',
+          title: 'Meeting Schedule',
           tabBarIcon: ({ color }) => (
-            <Ionicons name="videocam-outline" size={24} color={color} />
+            <Ionicons name="calendar-outline" size={24} color={color} />
           ),
         }}
       />

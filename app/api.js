@@ -4,4 +4,4 @@ const api = axios.create({
   baseURL: 'https://syncmeet-back.onrender.com', 
 });
 
-export default api;
+export { api } from '../utils/api';

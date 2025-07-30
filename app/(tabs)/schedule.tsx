@@ -1,16 +1,16 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useMeetings } from '../../components/MeetingContext';
@@ -78,46 +78,173 @@ export default function ScheduleMeetingScreen() {
       return;
     }
 
-    const newMeeting = {
-      title,
-      date: date,
-      duration: parseInt(duration),
-      participants: 0,
-      description,
-    };
-
-    await addMeeting(newMeeting);
-    
-    // Schedule notification reminder
     try {
-      const notificationSettings = await loadNotificationSettings();
-      if (notificationSettings.enabled) {
-        const notificationId = await scheduleMeetingReminder(
-          newMeeting.title + '_' + newMeeting.date.getTime(), // Simple ID generation
-          newMeeting.title,
-          newMeeting.date,
-          notificationSettings
-        );
-        
-        if (notificationId) {
-          console.log('Meeting reminder scheduled successfully');
+      // Try multiple API endpoints in case one is not working
+      const endpoints = [
+        'https://syncmeet-back.onrender.com/api/meetings/schedule',
+        'https://syncmeet-back.onrender.com/req/meetings',
+        'https://syncmeet-back.onrender.com/api/meetings'
+      ];
+      
+      let response = null;
+      let lastError = null;
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          
+          // Add timeout to the fetch request
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              title,
+              startTime: date.toISOString(),
+              endTime: new Date(date.getTime() + parseInt(duration) * 60000).toISOString(),
+              duration: parseInt(duration),
+              description: description || '',
+            }),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            console.log(`Success with endpoint: ${endpoint}`);
+            break;
+          }
+        } catch (error) {
+          console.log(`Failed with endpoint ${endpoint}:`, error);
+          lastError = error;
+          response = null;
         }
       }
-    } catch (error) {
-      console.error('Error scheduling meeting reminder:', error);
-    }
-    
-    Alert.alert(
-      'Meeting Scheduled', 
-      'Your meeting has been added to the list and a reminder will be sent 5 minutes before the meeting starts.',
-      [{ text: 'OK' }]
-    );
+      
+      if (!response) {
+        throw new Error(`All API endpoints failed. Last error: ${lastError instanceof Error ? lastError.message : 'Unknown error'}`);
+      }
 
-    // Reset inputs
-    setTitle('');
-    setDate(new Date());
-    setDuration('30');
-    setDescription('');
+      console.log('API Response status:', response.status);
+      console.log('API Response statusText:', response.statusText);
+      console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const responseText = await response.text();
+      console.log('API Response text length:', responseText.length);
+      console.log('API Response text:', responseText);
+      
+      // If response is empty, try a fallback approach
+      if (!responseText || responseText.trim() === '') {
+        console.log('Empty response from API, using fallback approach');
+        // Create a local meeting with a generated ID
+        const fallbackMeetingId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const newMeeting = {
+          id: fallbackMeetingId,
+          title,
+          date: new Date(date),
+          duration: parseInt(duration),
+          participants: 0,
+          description: description || '',
+        };
+
+        console.log('Adding fallback meeting to context:', newMeeting);
+        await addMeeting(newMeeting);
+        console.log('Fallback meeting added successfully');
+        
+        Alert.alert(
+          'Meeting Scheduled (Offline)', 
+          `Your meeting has been scheduled locally!\nMeeting ID: ${fallbackMeetingId}\n\nNote: This meeting was created offline as the server is currently unavailable.`,
+          [{ text: 'OK' }]
+        );
+
+        // Reset inputs
+        setTitle('');
+        setDate(new Date());
+        setDuration('30');
+        setDescription('');
+        return;
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON Parse error:', parseError);
+        console.error('Response text was:', responseText);
+        throw new Error(`Invalid JSON response from server: ${responseText}`);
+      }
+      
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Server error: ${response.status}`);
+      }
+
+      // Check if we have a meeting ID in the response
+      const meetingId = data.data?.id || data.id || data.meetingId;
+      if (!meetingId) {
+        throw new Error('No meeting ID received from server');
+      }
+
+      console.log('API Response data:', data);
+      console.log('Extracted meeting ID:', meetingId);
+
+      // Create meeting object with the received meetingId
+      const newMeeting = {
+        id: meetingId, // Use the meetingId from backend
+        title,
+        date: new Date(date), // Ensure it's a proper Date object
+        duration: parseInt(duration),
+        participants: 0,
+        description: description || '',
+      };
+
+      console.log('Adding meeting to context:', newMeeting);
+      await addMeeting(newMeeting);
+      console.log('Meeting added successfully');
+      
+      // Schedule notification reminder
+      try {
+        const notificationSettings = await loadNotificationSettings();
+        if (notificationSettings.enabled) {
+          const notificationId = await scheduleMeetingReminder(
+            newMeeting.id,
+            newMeeting.title,
+            newMeeting.date,
+            notificationSettings
+          );
+          
+          if (notificationId) {
+            console.log('Meeting reminder scheduled successfully');
+          }
+        }
+      } catch (error) {
+        console.error('Error scheduling meeting reminder:', error);
+      }
+      
+      Alert.alert(
+        'Meeting Scheduled', 
+        `Your meeting has been scheduled successfully!\nMeeting ID: ${meetingId}`,
+        [{ text: 'OK' }]
+      );
+
+      // Reset inputs
+      setTitle('');
+      setDate(new Date());
+      setDuration('30');
+      setDescription('');
+      
+    } catch (error) {
+      console.error('Error scheduling meeting:', error);
+      Alert.alert(
+        'Error', 
+        error instanceof Error ? error.message : 'Failed to schedule meeting. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const themeColors = {

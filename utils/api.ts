@@ -69,7 +69,7 @@ export interface ApiResponse<T = any> {
 }
 
 export interface LoginRequest {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -363,6 +363,10 @@ class ApiClient {
     return this.get<Meeting[]>(API_ENDPOINTS.MEETINGS.LIST);
   }
 
+  async getMyMeetings(): Promise<ApiResponse<Meeting[]>> {
+    return this.get<Meeting[]>('/api/meetings/my');
+  }
+
   async createMeeting(meeting: Omit<Meeting, 'id' | 'hostId' | 'hostName' | 'participants' | 'status'>): Promise<ApiResponse<Meeting>> {
     return this.post<Meeting>(API_ENDPOINTS.MEETINGS.CREATE, meeting);
   }
@@ -379,16 +383,29 @@ class ApiClient {
     return this.delete<void>(API_ENDPOINTS.MEETINGS.DELETE(id));
   }
 
-  async joinMeeting(id: string): Promise<ApiResponse<{ meetingUrl: string }>> {
-    return this.post<{ meetingUrl: string }>(API_ENDPOINTS.MEETINGS.JOIN(id), {});
+  async joinMeeting(id: string): Promise<ApiResponse<{ meetingUrl: string; channelName: string }>> {
+    return this.post<{ meetingUrl: string; channelName: string }>(`/api/meetings/join/${id}`, {});
   }
 
   async leaveMeeting(id: string): Promise<ApiResponse<void>> {
-    return this.post<void>(API_ENDPOINTS.MEETINGS.LEAVE(id), {});
+    return this.post<void>(`/api/meetings/leave/${id}`, {});
   }
 
   async getMeetingParticipants(id: string): Promise<ApiResponse<Participant[]>> {
-    return this.get<Participant[]>(API_ENDPOINTS.MEETINGS.PARTICIPANTS(id));
+    return this.get<Participant[]>(`/api/participants/${id}`);
+  }
+
+  async addParticipant(meetingId: string, participant: Omit<Participant, 'id'>): Promise<ApiResponse<Participant>> {
+    return this.post<Participant>(`/api/participants/${meetingId}`, participant);
+  }
+
+  async removeParticipant(meetingId: string, participantId: string): Promise<ApiResponse<void>> {
+    return this.delete<void>(`/api/participants/${meetingId}/${participantId}`);
+  }
+
+  // Agora token method
+  async getAgoraToken(channelName: string): Promise<ApiResponse<{ token: string }>> {
+    return this.get<{ token: string }>(`/api/agora/token/${channelName}`);
   }
 
   // Calendar methods
@@ -431,6 +448,7 @@ export const api = {
 
   // Meetings
   getMeetings: () => apiClient.getMeetings(),
+  getMyMeetings: () => apiClient.getMyMeetings(),
   createMeeting: (meeting: any) => apiClient.createMeeting(meeting),
   getMeeting: (id: string) => apiClient.getMeeting(id),
   updateMeeting: (id: string, updates: any) => apiClient.updateMeeting(id, updates),
@@ -438,6 +456,9 @@ export const api = {
   joinMeeting: (id: string) => apiClient.joinMeeting(id),
   leaveMeeting: (id: string) => apiClient.leaveMeeting(id),
   getMeetingParticipants: (id: string) => apiClient.getMeetingParticipants(id),
+  addParticipant: (meetingId: string, participant: any) => apiClient.addParticipant(meetingId, participant),
+  removeParticipant: (meetingId: string, participantId: string) => apiClient.removeParticipant(meetingId, participantId),
+  getAgoraToken: (channelName: string) => apiClient.getAgoraToken(channelName),
 
   // Calendar
   getCalendarEvents: () => apiClient.getCalendarEvents(),

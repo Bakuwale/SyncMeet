@@ -4,110 +4,26 @@ import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native"
 import PhotoUpload from "../components/PhotoUpload"
 import { useAuth } from "../components/auth-context"
-import axios from "axios"
 
 const BASE_URL = "https://syncmeet-back.onrender.com"
-
-// ✅ API Service for user registration - ONLY '/req/signup' is called here
-const signupApiService = {
-  // Register new user - Enhanced with better error handling and debugging
-  registerUser: async (userData) => {
-    try {
-      console.log("🔄 Attempting to register user with JSON data...")
-      
-      // Log the request payload for debugging
-      console.log("📤 Request payload:", JSON.stringify(userData, null, 2))
-      
-      const response = await axios.post(`${BASE_URL}/req/signup`, userData, {
-        headers: {
-          'Content-Type': 'application/json',
-          "Accept": "application/json",
-        },
-        timeout: 30000, // Increased timeout
-        validateStatus: function (status) {
-          return status < 500; // Don't throw for 4xx errors, handle them gracefully
-        }
-      })
-      
-      if (response.status === 403) {
-        throw new Error('BACKEND_SECURITY_BLOCK')
-      }
-      
-      console.log("✅ Registration response status:", response.status)
-      
-      // Enhanced logging to understand the response structure
-      console.log("✅ Response data type:", typeof response.data)
-      console.log("✅ Response data keys:", Object.keys(response.data))
-      
-      // Log sample of key fields to confirm Axios's automatic JSON parsing
-      console.log("✅ Sample accessToken:", response.data.accessToken ? response.data.accessToken.substring(0, 10) + '...' : 'not found')
-      console.log("✅ Sample token:", response.data.token ? response.data.token.substring(0, 10) + '...' : 'not found')
-      console.log("✅ Sample refreshToken:", response.data.refreshToken ? response.data.refreshToken.substring(0, 10) + '...' : 'not found')
-      console.log("✅ User data present:", !!response.data.user)
-      console.log("✅ Requires email verification:", !!response.data.requiresEmailVerification)
-      
-      // Full response data for debugging
-      console.log("✅ Registration response data:", JSON.stringify(response.data, null, 2))
-      
-      // Return the data directly - Axios already parsed the JSON
-      return response.data
-    } catch (error) {
-      console.error("❌ Error registering user:", error.response?.data || error.message)
-      
-      // Enhanced debugging for 403 errors
-      if (error.response?.status === 403 || error.message === 'BACKEND_SECURITY_BLOCK') {
-        console.error("🚫 403 FORBIDDEN - BACKEND CONFIGURATION ISSUE:")
-        console.error("   → CORS: Server not allowing frontend domain")
-        console.error("   → CSRF: Server expecting CSRF tokens")
-        console.error("   → WAF: Web Application Firewall blocking request")
-        console.error("   → Auth: Endpoint requiring authentication")
-        console.error("   → Rate Limit: Too many requests from IP")
-        console.error("")
-        console.error("🔧 BACKEND FIXES NEEDED:")
-        console.error("   1. Configure CORS to allow frontend domain")
-        console.error("   2. Disable CSRF for API endpoints")
-        console.error("   3. Check WAF/security rules")
-        console.error("   4. Verify endpoint accessibility")
-        
-        // Create a more user-friendly error
-        const backendError = new Error('BACKEND_CONFIGURATION_ERROR')
-        backendError.userMessage = 'Server configuration issue. Please contact support.'
-        throw backendError
-      }
-      
-      // Log detailed error information
-      console.error("- Status:", error.response?.status)
-      console.error("- Status Text:", error.response?.statusText)
-      console.error("- Response Headers:", error.response?.headers)
-      console.error("- Response Data:", JSON.stringify(error.response?.data, null, 2))
-      console.error("- Request URL:", error.config?.url)
-      console.error("- Request Headers:", error.config?.headers)
-      console.error("- Error Code:", error.code)
-      
-      throw error
-    }
-  },
-  // All other API service functions (checkEmailAvailability, uploadProfilePhoto,
-  // sendEmailVerification, checkUsernameAvailability) have been removed.
-}
 
 export default function SignupScreen() {
   const router = useRouter()
@@ -344,131 +260,52 @@ export default function SignupScreen() {
     };
   };
 
-  // ✅ Enhanced account creation with backend integration - ONLY calling /req/signup
+  // Enhanced account creation with backend integration - ONLY calling /req/signup
   const handleCreateAccount = debounce(async () => {
     if (!validate()) return
     
     // Prevent multiple submissions
     if (loading) {
-      // Provide feedback when user tries to submit multiple times
-      Alert.alert("Please wait", "Your account is being created...")
       return
     }
     
     setLoading(true)
 
     try {
-      // ✅ Prepare user data as JSON object
-      const userData = {
-        name: fullName.trim(),
-        email: email.trim().toLowerCase(),
-        username: email.trim().toLowerCase(), // Add username field explicitly to match backend expectations
-        password: password,
-        acceptedTerms: acceptTerms,
-        registrationSource: 'mobile_app',
-        deviceInfo: {
-          platform: Platform.OS,
-          version: Platform.Version,
-        }
-      };
-
-      // Note: Profile photo upload would need to be handled separately
-      // or through a different endpoint when using JSON content type
-      // For now, we'll focus on fixing the registration issue
-
-      const registrationResponse = await signupApiService.registerUser(userData);
-
-      // ✅ Handle successful registration
-      const { user, accessToken, refreshToken, requiresEmailVerification } = registrationResponse
-      
-      // Reset form fields after successful registration
-      setFullName('')
-      setEmail('')
-      setPassword('')
-      setConfirm('')
-      setProfilePhoto(null)
-      setAcceptTerms(false)
-      
-      // Log the response structure to help with debugging
-      console.log("✅ Registration response keys:", Object.keys(registrationResponse))
-      console.log("✅ Access token available:", !!accessToken)
-      console.log("✅ Refresh token available:", !!refreshToken)
-      console.log("✅ User data available:", !!user)
-
-      // ✅ Use auth context to complete signup
+      // Prepare user data for auth context signup
       const signupData = {
-        fullName: fullName.trim(), // Changed from 'name' to 'fullName' to match auth context
-        email: email.trim().toLowerCase(), // Ensure email is lowercase to match registration
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
         password: password,
-        profilePhoto: profilePhoto, // Still passed to auth context if needed internally
-        accessToken,
-        refreshToken,
-        user,
+        profilePhoto: profilePhoto,
       }
-
-      console.log("✅ Passing signup data to auth context with token:", accessToken ? "[TOKEN AVAILABLE]" : "[NO TOKEN]")
+      
+      // Use auth context signup function directly (it handles the API call)
       const signupSuccess = await signup(signupData)
 
       setLoading(false)
 
       if (signupSuccess) {
-        // ✅ Handle email verification requirement (logic remains, but the 'sendEmailVerification' API call is removed)
-        if (requiresEmailVerification) {
-          Alert.alert(
-            "Account Created Successfully!",
-            "Please check your email and click the verification link to activate your account. You can still use the app, but some features may be limited until verified.",
-            [
-              {
-                text: "Resend Email",
-                style: "default",
-                onPress: async () => {
-                  // No API call to resend email, as per your request to only use /req/signup
-                  Alert.alert("Feature Unavailable", "Resend email verification is not supported from this screen directly.")
-                },
-              },
-              {
-                text: "Continue",
-                style: "default",
-                onPress: () => router.replace("/(tabs)"),
-              },
-            ],
-          )
-        } else {
-          // ✅ Direct login for verified accounts
-          Alert.alert("Welcome to SyncMeet!", `Hello ${fullName}! Your account has been created successfully.`, [
-            {
-              text: "Get Started",
-              onPress: () => router.replace("/(tabs)"),
-            },
-          ])
-        }
+        // Reset form fields after successful registration
+        setFullName('')
+        setEmail('')
+        setPassword('')
+        setConfirm('')
+        setProfilePhoto(null)
+        setAcceptTerms(false)
+        
+        // Navigate to main app immediately after successful signup
+        router.replace("/(tabs)")
       } else {
         throw new Error("Signup failed in auth context")
       }
     } catch (error: any) {
       setLoading(false)
       
-      // Log detailed error information for debugging
-      console.error("❌ Signup error details:")
-      console.error("- Error message:", error.message)
-      console.error("- Status:", error.response?.status)
-      console.error("- Status Text:", error.response?.statusText)
-      console.error("- Response Data:", JSON.stringify(error.response?.data, null, 2))
-      console.error("- Stack:", error.stack)
-
-      // ✅ Handle different error scenarios with enhanced backend error detection
+      // Handle different error scenarios
       let errorMessage = "Account creation failed. Please try again."
 
-      // Specifically handle JSON parsing errors
-      if (error.message && error.message.includes('JSON')) {
-        console.error("❌ JSON PARSING ERROR DETECTED:", error.message)
-        console.error("- Original response:", error.response?.data)
-        errorMessage = "There was an error processing the server response. Please try again or contact support."
-      }
-      // Handle enhanced backend configuration errors
-      else if (error.message === 'BACKEND_CONFIGURATION_ERROR') {
-        errorMessage = "Server configuration issue. Our team has been notified. Please try again later or contact support."
-      } else if (error.response?.status === 400) {
+      if (error.response?.status === 400) {
         // Validation errors from backend
         const backendErrors = error.response.data?.errors || {}
         if (backendErrors.email) {
@@ -481,30 +318,18 @@ export default function SignupScreen() {
           errorMessage = error.response.data?.message || "Invalid registration data."
         }
       } else if (error.response?.status === 409) {
-        // Email already exists (handled by /req/signup directly now)
+        // Email already exists
         setErrors((prev) => ({ ...prev, email: "This email is already registered" }))
         errorMessage = "An account with this email already exists. Please use a different email or try logging in."
       } else if (error.response?.status === 429) {
         // Rate limiting
         errorMessage = "Too many registration attempts. Please wait a few minutes and try again."
-      } else if (error.response?.status === 403) {
-        // Enhanced 403 error handling
-        errorMessage = "Server access denied. This appears to be a backend configuration issue. Please contact support or try again later."
-        console.error("🚨 403 FORBIDDEN: Backend server configuration blocking signup requests")
       } else if (!error.response) {
-        // Network error (no response from server)
-        if (error.code === 'ECONNABORTED') {
-          errorMessage = "Request timed out. The server is taking too long to respond. Please try again later."
-        } else if (error.message.includes('Network Error')) {
-          errorMessage = "Network error. Please check your internet connection and try again."
-        } else {
-          errorMessage = "Connection error. Please check your internet connection and try again later."
-        }
-        console.error("🌐 Network/Connection Error:", error.code, error.message)
+        // Network error
+        errorMessage = "Network error. Please check your internet connection and try again."
       }
 
       Alert.alert("Registration Failed", errorMessage)
-      console.error("Signup error:", error)
     }
   }, 500) // 500ms debounce delay
 

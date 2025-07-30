@@ -13,13 +13,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import { AuthProvider, useAuth } from '../components/auth-context';
+import { ChatProvider } from '../components/ChatContext';
 import { ContactProvider } from '../components/ContactContext';
 import { MeetingProvider } from '../components/MeetingContext';
+import { ParticipantProvider } from '../components/ParticipantContext';
 import { ScheduleProvider } from '../components/ScheduleContext';
 import { ThemeProvider } from '../components/ThemeContext';
 import { initializeNotifications } from '../utils/notifications';
-import { ChatProvider } from '../components/ChatContext';
-import { ParticipantProvider } from '../components/ParticipantContext';
 
 const clerkPublishableKey = Constants.expoConfig?.extra?.clerkPublishableKey || process.env.CLERK_PUBLISHABLE_KEY;
 
@@ -46,7 +46,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 function AuthAndThemeProviders({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <ThemeProvider>{children}</ThemeProvider>
+      <ThemeProvider>
+        {children}
+      </ThemeProvider>
     </AuthProvider>
   );
 }
@@ -98,16 +100,16 @@ function RootStackWithAuth() {
         <>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="edit-profile" />
-          <Stack.Screen name="change-password" />
-          <Stack.Screen name="reminder-settings" />
-          <Stack.Screen name="splash" />
-          <Stack.Screen name="+not-found" />
+          <Stack.Screen name="video-call" />
+          <Stack.Screen name="meetings" />
         </>
       ) : (
         <>
+          <Stack.Screen name="index" />
           <Stack.Screen name="login" />
           <Stack.Screen name="signup" />
           <Stack.Screen name="forgot-password" />
+          <Stack.Screen name="reset-password" />
         </>
       )}
     </Stack>

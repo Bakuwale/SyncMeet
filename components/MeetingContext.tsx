@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import {
     cancelMeetingReminder,
@@ -19,7 +19,7 @@ export type Meeting = {
 
 type MeetingContextType = {
   meetings: Meeting[];
-  addMeeting: (meeting: Omit<Meeting, 'id'>) => void;
+  addMeeting: (meeting: Meeting) => void;
   deleteMeeting: (id: string) => void;
   updateMeeting: (id: string, meeting: Partial<Meeting>) => void;
   loading: boolean;
@@ -38,7 +38,7 @@ export const MeetingProvider = ({ children }: { children: ReactNode }) => {
   // Initialize with an empty array (no dummy meetings)
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   // Add loading and error state
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed from true to false
   const [error, setError] = useState<string | null>(null);
 
   // Initialize notifications on app start
@@ -46,30 +46,24 @@ export const MeetingProvider = ({ children }: { children: ReactNode }) => {
     initializeNotifications();
   }, []);
 
-  // Fetch meetings from API (simulate with setTimeout for now)
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    setTimeout(() => {
-      setMeetings([]); // TODO: Replace with real API call
-      setLoading(false);
-    }, 1000);
-  }, []);
+  // Remove the useEffect that was clearing meetings on mount
 
-  const addMeeting = async (meeting: Omit<Meeting, 'id'>) => {
-    // Generate a random 9-digit meeting ID
-    const id = Math.floor(100000000 + Math.random() * 900000000).toString();
-    const newMeeting = { ...meeting, id };
-    
-    setMeetings(prev => [newMeeting, ...prev]);
+  const addMeeting = async (meeting: Meeting) => {
+    console.log('MeetingContext: Adding meeting:', meeting);
+    // The meeting should already have an ID from the backend response
+    setMeetings(prev => {
+      const newMeetings = [meeting, ...prev];
+      console.log('MeetingContext: Updated meetings array:', newMeetings);
+      return newMeetings;
+    });
 
     // Schedule notification for the new meeting
     try {
       const notificationSettings = await loadNotificationSettings();
       const notificationId = await scheduleMeetingReminder(
-        newMeeting.id,
-        newMeeting.title,
-        newMeeting.date,
+        meeting.id,
+        meeting.title,
+        meeting.date,
         notificationSettings
       );
       if (notificationId) {
